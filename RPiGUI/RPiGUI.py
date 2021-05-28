@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import ImageTk,Image
+import math
 
 class Page(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -7,6 +8,12 @@ class Page(tk.Frame):
     def show(self):
         self.lift()
         return
+
+class pill:
+    def __init__(self, name, icon_id, qty):
+        self.name = name
+        self.icon_id = icon_id
+        self.qty = qty
 
 def start_button():
     if app_mode == 0:
@@ -17,6 +24,7 @@ def start_button():
 
 def goto_pill_page_button():
     pill_page.lift()
+    pill_update_pill_icons()
     return
 
 def goto_quantity_page_button():
@@ -25,6 +33,8 @@ def goto_quantity_page_button():
 
 def goto_setting_page_button():
     settings_page.lift()
+    s_wifi_frame.lift()
+    s_wifi_button.configure(background="#F28E6D")
     return
 
 def goto_account_page_button():
@@ -155,6 +165,39 @@ def keyboard_cancel_button():
     current_page.lift()
     return
 
+def pill_left_nav_button():
+    global current_pill, pills
+    current_pill = (current_pill - 1) % len(pills)
+    pill_update_pill_icons()
+    return
+
+def pill_right_nav_button():
+    global current_pill
+    current_pill = (current_pill + 1) % len(pills)
+    pill_update_pill_icons()
+    return
+
+def pill_update_pill_icons():
+    p_pill_name_label.configure(text=pills[current_pill].name)
+    p_pill_button.configure(image=pill_images[pills[current_pill].icon_id])
+    return
+
+def pill_detail_update_page(index):
+    pd_pill_name_button.configure(text=pills[index].name)
+    pd_pill_button.configure(image=pill_images_small[pills[index].icon_id])
+    return
+
+def pill_select_button(index):
+    pill_detail_update_page(index)
+    pill_detail_page.lift()
+    return
+
+def pill_detail_edit_button(index):
+    return
+
+def pill_dispenser_open(index):
+    return
+
 def account_general_button():
     a_general_button.configure(background="#EFB85F")
     a_sharing_button.configure(background="#F4D297")
@@ -276,17 +319,25 @@ def account_logout_confirm_button():
     #Logout code here
     return
 
+def setting_wifi_button():
+    s_wifi_frame.lift()
+    return
+
 
 keyboard_colour="#D8D8D8"
 keyboard_colour_active="#C1C1C1"
 #Pastel colours used: Blue "#98F3F9"; Green "#98F9CF"; Yellow "#F7EF99"; Orange "#F4D297"; Red "#F7B299"; Purple "#D9B1EF"
-#Lighter colours used: Blue "#98F3F9"; Green "#98F9CF"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
-#Darker colours used: Blue "#98F3F9"; Green "#98F9CF"; Yellow "#F7EF99"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
+#Lighter colours used: Blue "#98F3F9"; Green "#B7F4DA"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
+#Darker colours used: Blue "#98F3F9"; Green "#60F2B0"; Yellow "#F2E14B"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
 
 
 shift = False
 capslock = False
 app_mode = 1
+
+#Initial set up = 0
+#Offline mode = 1
+#Online mode = 2
 
 current_entry_button = None
 current_page = None
@@ -299,9 +350,13 @@ temp_sharing_user1 = None
 temp_sharing_user2 = None
 temp_sharing_user3 = None
 
-#Initial set up = 0
-#Offline mode = 1
-#Online mode = 2
+add_pill = pill("Add Medicine", 0, 1)
+pill_1 = pill("Aspirin", 5, 100)
+pill_2 = pill("Omeprazole", 4, 100)
+
+pills = [pill_1, pill_2, add_pill]
+
+current_pill = 0
 
 window = tk.Tk()
 window.title("Cygnus App")
@@ -312,10 +367,24 @@ pill_image = ImageTk.PhotoImage(Image.open("Resources/pill_icon.png"))
 quantity_image = ImageTk.PhotoImage(Image.open("Resources/bar_chart_icon.png"))
 person_image = ImageTk.PhotoImage(Image.open("Resources/person_icon.png"))
 setting_image = ImageTk.PhotoImage(Image.open("Resources/setting_icon.png"))
+left_arrow_image = ImageTk.PhotoImage(Image.open("Resources/left_arrow.png"))
+right_arrow_image = ImageTk.PhotoImage(Image.open("Resources/right_arrow.png"))
+back_icon_image = ImageTk.PhotoImage(Image.open("Resources/back_arrow.png"))
 person_small_image = ImageTk.PhotoImage(Image.open("Resources/person_small_icon.png"))
 group_image = ImageTk.PhotoImage(Image.open("Resources/group_icon.png"))
 lock_image = ImageTk.PhotoImage(Image.open("Resources/lock_icon.png"))
 logout_image = ImageTk.PhotoImage(Image.open("Resources/logout_icon.png"))
+wifi_image = ImageTk.PhotoImage(Image.open("Resources/wifi_icon.png"))
+pill_images = []
+pill_images_small = []
+pill_images.append(ImageTk.PhotoImage(Image.open("Resources/Pill_Icons/Add_Pill.png")))
+pill_images_small.append(ImageTk.PhotoImage(Image.open("Resources/Pill_Icons/Add_Pill.png")))
+for pill_counter in range(12):
+    with Image.open(f"Resources/Pill_Icons/Pill{math.floor(pill_counter/6)}{pill_counter % 6}.png") as temp_image:
+        pill_images.append(ImageTk.PhotoImage(temp_image))
+        temp_image_small = temp_image.copy()
+        temp_image.thumbnail((80,80))
+        pill_images_small.append(ImageTk.PhotoImage(temp_image))
 
 start_page = Page(window)
 start_page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -333,61 +402,152 @@ setup_online_button.place(relwidth=0.5, relheight=1, relx=1, rely=0, anchor="ne"
 
 main_page = Page(window, bg="#98F3F9")
 main_page.place(relx=0, rely=0, relwidth=1, relheight=1)
-dispense_frame = tk.Frame(main_page, bg="#98F3F9")
-dispense_frame.place(relwidth=0.6, relheight=1, relx=0, rely=0, anchor="nw")
+
+m_dispense_frame = tk.Frame(main_page, bg="#98F3F9")
+m_dispense_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0, anchor="nw")
 
 
-status_frame = tk.Frame(main_page, bg="#F2F2F2")
-status_frame.place(relwidth=0.4, relheight=0.1, relx=1, rely=0, anchor="ne")
+m_refill_frame = tk.Frame(main_page, bg="#98F3F9")
+m_refill_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0.5, anchor="nw")
 
-pill_frame = tk.Frame(main_page, bg="#98F9CF")
-pill_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.1, anchor="ne")
-m_pill_button = tk.Button(pill_frame, bg="#98F9CF", image=pill_image, text=" Medicine", compound="left", activebackground="#98F9CF", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_pill_page_button)
+
+m_status_frame = tk.Frame(main_page, bg="#F2F2F2")
+m_status_frame.place(relwidth=0.4, relheight=0.1, relx=1, rely=0, anchor="ne")
+
+m_pill_frame = tk.Frame(main_page, bg="#98F9CF")
+m_pill_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.1, anchor="ne")
+m_pill_button = tk.Button(m_pill_frame, bg="#98F9CF", image=pill_image, text=" Medicine", compound="left", activebackground="#98F9CF", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_pill_page_button)
 m_pill_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
-quantity_frame = tk.Frame(main_page, bg="#F7EF99")
-quantity_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.325, anchor="ne")
-m_quantity_button = tk.Button(quantity_frame, bg="#F7EF99", image=quantity_image, text=" Quantity", compound="left", activebackground="#F7EF99", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_quantity_page_button)
+m_quantity_frame = tk.Frame(main_page, bg="#F7EF99")
+m_quantity_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.325, anchor="ne")
+m_quantity_button = tk.Button(m_quantity_frame, bg="#F7EF99", image=quantity_image, text=" Quantity", compound="left", activebackground="#F7EF99", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_quantity_page_button)
 m_quantity_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
-account_frame = tk.Frame(main_page, bg="#F4D297")
-account_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.55, anchor="ne")
-m_account_button = tk.Button(account_frame, bg="#F4D297", image=person_image, text=" Account", compound="left", activebackground="#F4D297", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_account_page_button)
+m_account_frame = tk.Frame(main_page, bg="#F4D297")
+m_account_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.55, anchor="ne")
+m_account_button = tk.Button(m_account_frame, bg="#F4D297", image=person_image, text=" Account", compound="left", activebackground="#F4D297", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_account_page_button)
 m_account_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
-settings_frame = tk.Frame(main_page, bg="#F4A497")
-settings_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.775, anchor="ne")
-m_setting_button = tk.Button(settings_frame, bg="#F7B299", image=setting_image, text=" Settings", compound="left", activebackground="#F7B299", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_setting_page_button)
+m_settings_frame = tk.Frame(main_page, bg="#F4A497")
+m_settings_frame.place(relwidth=0.4, relheight=0.225, relx=1, rely=0.775, anchor="ne")
+m_setting_button = tk.Button(m_settings_frame, bg="#F7B299", image=setting_image, text=" Settings", compound="left", activebackground="#F7B299", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_setting_page_button)
 m_setting_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
+main_lines = []
+for line_count in range(6):
+    main_lines.append(tk.Frame(main_page, bg="white"))
+main_lines[0].place(relwidth=0.4, height=2, relx=1, rely=0.1, anchor="e")
+main_lines[1].place(relwidth=0.4, height=2, relx=1, rely=0.325, anchor="e")
+main_lines[2].place(relwidth=0.4, height=2, relx=1, rely=0.55, anchor="e")
+main_lines[3].place(relwidth=0.4, height=2, relx=1, rely=0.775, anchor="e")
+main_lines[4].place(relwidth=0.6, height=2, relx=0, rely=0.5, anchor="w")
+main_lines[5].place(width=2, relheight=1, relx=0.6, rely=0, anchor="n")
 
-
-
+#Pill Page
 
 pill_page = Page(window, bg="#98f9cf")
 pill_page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-title = tk.Label(pill_page, text="Medicine", font=("Trebuchet MS", 12), bg="#98f9cf")
-title.place(relx=0.5, rely=0, anchor="n")
+p_pill_name_label = tk.Label(pill_page, text="", font=("Trebuchet MS", 24), bg="#98f9cf")
+p_pill_name_label.place(relx=0.5, rely=0.08, relwidth=0.5, relheight=0.16, anchor="c")
 
-left_arrow_image = ImageTk.PhotoImage(Image.open("Resources/left_arrow.png"))
-p_left_button = tk.Button(pill_page, image=left_arrow_image, bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0)
+p_left_button = tk.Button(pill_page, image=left_arrow_image, bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = pill_left_nav_button)
 p_left_button.place(relx=0.04, rely=0.5, anchor="w")
 
-right_arrow_image = ImageTk.PhotoImage(Image.open("Resources/right_arrow.png"))
-p_right_button = tk.Button(pill_page, image=right_arrow_image, bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0)
+p_right_button = tk.Button(pill_page, image=right_arrow_image, bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = pill_right_nav_button)
 p_right_button.place(relx=0.96, rely=0.5, anchor="e")
 
-back_icon_image = ImageTk.PhotoImage(Image.open("Resources/back_arrow.png"))
-p_back_button = tk.Button(pill_page, image=back_icon_image, bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command=goto_main_page_button)
-p_back_button.place(relx=0.02, rely=0.02, anchor="nw")
+p_back_button = tk.Button(pill_page, image=back_icon_image, bg="#98f9cf", activebackground="#60F2B0", relief="sunken", borderwidth=0, command = goto_main_page_button)
+p_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.16, anchor="nw")
 
+p_pill_button = tk.Button(pill_page, image = pill_images[0], bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = lambda:pill_select_button(current_pill))
+p_pill_button.place(relx=0.5, rely=0.5, relwidth=0.3, relheight=0.4, anchor ="c")
+
+#p_pill_left_label = tk.Label(pill_page, image = pill_images[0], bg="#98f9cf")
+
+
+#Pill Details Page
+
+pill_detail_page = Page(window, bg="#B7F4DA")
+pill_detail_page.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+pd_back_button = tk.Button(pill_detail_page, image=back_icon_image, bg="#B7F4DA", activebackground="#60F2B0", relief="sunken", borderwidth=0, command = goto_pill_page_button)
+pd_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.16, anchor="nw")
+
+pd_pill_name_button = tk.Label(pill_detail_page, text="Medicine Name", font=("Trebuchet MS", 24), bg="#B7F4DA", activebackground="#B7F4DA", relief="sunken", borderwidth=0)
+pd_pill_name_button.place(relx=0.5, rely=0.08, relwidth=0.5, relheight=0.16, anchor="c")
+
+pd_pill_button = tk.Label(pill_detail_page, image = pill_images_small[1], bg="#B7F4DA", activebackground="#B7F4DA", relief="sunken", borderwidth=0)
+pd_pill_button.place(relx=0.9, rely=0, relwidth=0.12, relheight=0.16, anchor ="ne")
+
+pd_open_button = tk.Button(pill_detail_page, text="Open", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=pill_dispenser_open(current_pill))
+pd_open_button.place(relx=0.35, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
+
+pd_edit_button = tk.Button(pill_detail_page, text="Edit", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA")
+pd_edit_button.place(relx=0.65, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
+
+pd_calendar_frame = tk.Frame(pill_detail_page, bg="#98f9cf", highlightbackground="white", highlightthickness=2)
+pd_calendar_frame.place(relx=0.05, rely=0.5, relwidth=0.66, relheight=0.5, anchor ="w")
+
+pd_cal_sunday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="S")
+pd_cal_sunday.place(relx=5/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_monday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="M")
+pd_cal_monday.place(relx=6/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_tuesday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="T")
+pd_cal_tuesday.place(relx=7/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_wednesday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="W")
+pd_cal_wednesday.place(relx=8/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_thursday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="T")
+pd_cal_thursday.place(relx=9/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_friday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="F")
+pd_cal_friday.place(relx=10/12, rely=0, relwidth=1/12, relheight=0.2)
+pd_cal_saturday = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="S")
+pd_cal_saturday.place(relx=11/12, rely=0, relwidth=1/12, relheight=0.2)
+
+pd_cal_time = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="Time", anchor="c")
+pd_cal_time.place(relx=0, rely=0, relwidth=5/12, relheight=0.2)
+pd_cal_morning = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="Morning", anchor="c")
+pd_cal_morning.place(relx=0, rely=0.2, relwidth=3/12, relheight=0.2)
+pd_cal_afternoon = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="Afternoon", anchor="c")
+pd_cal_afternoon.place(relx=0, rely=0.4, relwidth=3/12, relheight=0.2)
+pd_cal_evening = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="Evening", anchor="c")
+pd_cal_evening.place(relx=0, rely=0.6, relwidth=3/12, relheight=0.2)
+pd_cal_night = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="Night", anchor="c")
+pd_cal_night.place(relx=0, rely=0.8, relwidth=3/12, relheight=0.2)
+
+pd_cal_time_m = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="08:00", anchor="c")
+pd_cal_time_m.place(relx=3/12, rely=0.2, relwidth=2/12, relheight=0.2)
+pd_cal_time_a = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="12:00", anchor="c")
+pd_cal_time_a.place(relx=3/12, rely=0.4, relwidth=2/12, relheight=0.2)
+pd_cal_time_e = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="16:00", anchor="c")
+pd_cal_time_e.place(relx=3/12, rely=0.6, relwidth=2/12, relheight=0.2)
+pd_cal_time_n = tk.Label(pd_calendar_frame, bg="#98f9cf", font=("Trebuchet MS", 16), text="20:00", anchor="c")
+pd_cal_time_n.place(relx=3/12, rely=0.8, relwidth=2/12, relheight=0.2)
+
+pd_cal_lines = []
+for line_count in range(12):
+    pd_cal_lines.append(tk.Frame(pd_calendar_frame, bg="white"))
+pd_cal_lines[0].place(relwidth=1, height=2, relx=0, rely=0.2, anchor="w")
+pd_cal_lines[1].place(relwidth=1, height=2, relx=0, rely=0.4, anchor="w")
+pd_cal_lines[2].place(relwidth=1, height=2, relx=0, rely=0.6, anchor="w")
+pd_cal_lines[3].place(relwidth=1, height=2, relx=0, rely=0.8, anchor="w")
+pd_cal_lines[4].place(width=2, relheight=0.8, relx=3/12, rely=0.2, anchor="n")
+pd_cal_lines[5].place(width=2, relheight=1, relx=5/12, rely=0, anchor="n")
+pd_cal_lines[6].place(width=2, relheight=1, relx=6/12, rely=0, anchor="n")
+pd_cal_lines[7].place(width=2, relheight=1, relx=7/12, rely=0, anchor="n")
+pd_cal_lines[8].place(width=2, relheight=1, relx=8/12, rely=0, anchor="n")
+pd_cal_lines[9].place(width=2, relheight=1, relx=9/12, rely=0, anchor="n")
+pd_cal_lines[10].place(width=2, relheight=1, relx=10/12, rely=0, anchor="n")
+pd_cal_lines[11].place(width=2, relheight=1, relx=11/12, rely=0, anchor="n")
+
+#Quantity Page
 
 quantity_page = Page(window, bg="#F7EF99")
 quantity_page.place(x=0, y=0, relwidth=1, relheight=1)
 
-q_back_button = tk.Button(quantity_page, image=back_icon_image, bg="#F7EF99", activebackground="#F7EF99", relief="sunken", borderwidth=0, command=goto_main_page_button)
-q_back_button.place(relx=0.02, rely=0.02, anchor="nw")
+q_back_button = tk.Button(quantity_page, image=back_icon_image, bg="#F7EF99", activebackground="#F2E14B", relief="sunken", borderwidth=0, command=goto_main_page_button)
+q_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.16, anchor="nw")
 
 
 
@@ -412,6 +572,14 @@ a_password_button.place(relx=0.5, rely=0.58, relheight=0.21, relwidth=1, anchor=
 a_logout_button = tk.Button(a_menu_frame, image=logout_image, bg="#F4D297", activebackground="#EFB85F", relief="sunken", borderwidth=0, command=account_logout_button, anchor = "c")
 a_logout_button.place(relx=0.5, rely=0.79, relheight=0.21, relwidth=1, anchor="n")
 
+a_lines = []
+for line_count in range(5):
+    a_lines.append(tk.Frame(a_menu_frame, bg="white"))
+a_lines[0].place(width=2, relheight=1, relx=1, rely=0, anchor="ne")
+a_lines[1].place(relwidth=1, height=2, relx=0, rely=0.16, anchor="w")
+a_lines[2].place(relwidth=1, height=2, relx=0, rely=0.37, anchor="w")
+a_lines[3].place(relwidth=1, height=2, relx=0, rely=0.58, anchor="w")
+a_lines[4].place(relwidth=1, height=2, relx=0, rely=0.79, anchor="w")
 
 a_general_frame = tk.Frame(account_page, bg="#F4E3CD")
 a_general_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
@@ -563,6 +731,18 @@ s_menu_frame.place(relx = 0, rely = 0, relwidth = 0.12, relheight = 1)
 s_back_button = tk.Button(s_menu_frame, image=back_icon_image, bg="#F7B299", activebackground="#F28E6D", relief="sunken", borderwidth=0, command=goto_main_page_button, anchor = "c")
 s_back_button.place(relx=0.5, rely=0.0, relheight=0.16, relwidth=1, anchor="n")
 
+s_wifi_button = tk.Button(s_menu_frame, image=wifi_image, bg="#F7B299", activebackground="#F28E6D", relief="sunken", borderwidth=0, command=goto_main_page_button, anchor = "c")
+s_wifi_button.place(relx=0.5, rely=0.16, relheight=0.21, relwidth=1, anchor="n")
+
+s_lines = []
+for line_count in range(3):
+    s_lines.append(tk.Frame(s_menu_frame, bg="white"))
+s_lines[0].place(width=2, relheight=1, relx=1, rely=0, anchor="ne")
+s_lines[1].place(relwidth=1, height=2, relx=0, rely=0.16, anchor="w")
+s_lines[2].place(relwidth=1, height=2, relx=0, rely=0.37, anchor="w")
+
+s_wifi_frame = tk.Frame(settings_page, bg="#F2D1C6")
+s_wifi_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
 
 
 keyboard_page = Page(window, bg=keyboard_colour)
