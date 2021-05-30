@@ -22,6 +22,14 @@ def start_button():
         main_page.lift()
     return
 
+def dispense_button():
+    #hardware dispense function
+    return
+
+def refill_button():
+    #hardware refill function
+    return
+
 def goto_pill_page_button():
     pill_page.lift()
     pill_update_pill_icons()
@@ -182,17 +190,21 @@ def pill_update_pill_icons():
     p_pill_button.configure(image=pill_images[pills[current_pill].icon_id])
     return
 
-def pill_detail_update_page(index):
-    pd_pill_name_button.configure(text=pills[index].name)
-    pd_pill_button.configure(image=pill_images_small[pills[index].icon_id])
+def pill_detail_page_update(pill_index):
+    pd_pill_name_button.configure(text=pills[pill_index].name)
+    pd_pill_button.configure(image=pill_images_small[pills[pill_index].icon_id])
     return
 
-def pill_select_button(index):
-    pill_detail_update_page(index)
+def goto_pill_detail_page_button(pill_index):
+    pill_detail_page_update(pill_index)
     pill_detail_page.lift()
     return
 
-def pill_detail_edit_button(index):
+def pill_edit_page_update(pill_index):
+    return
+
+def goto_pill_edit_page_button(pill_index):
+    pill_edit_page.lift()
     return
 
 def pill_dispenser_open(index):
@@ -363,6 +375,8 @@ window.title("Cygnus App")
 window.geometry("800x600")
 
 start_image = ImageTk.PhotoImage(Image.open("Resources/start.png"))
+dispense_image = ImageTk.PhotoImage(Image.open("Resources/dispense_icon.png"))
+refill_image = ImageTk.PhotoImage(Image.open("Resources/refill_icon.png"))
 pill_image = ImageTk.PhotoImage(Image.open("Resources/pill_icon.png"))
 quantity_image = ImageTk.PhotoImage(Image.open("Resources/bar_chart_icon.png"))
 person_image = ImageTk.PhotoImage(Image.open("Resources/person_icon.png"))
@@ -370,6 +384,8 @@ setting_image = ImageTk.PhotoImage(Image.open("Resources/setting_icon.png"))
 left_arrow_image = ImageTk.PhotoImage(Image.open("Resources/left_arrow.png"))
 right_arrow_image = ImageTk.PhotoImage(Image.open("Resources/right_arrow.png"))
 back_icon_image = ImageTk.PhotoImage(Image.open("Resources/back_arrow.png"))
+pill_icon_simple_image = ImageTk.PhotoImage(Image.open("Resources/pill_icon_simple.png"))
+calendar_image = ImageTk.PhotoImage(Image.open("Resources/calendar_icon.png"))
 person_small_image = ImageTk.PhotoImage(Image.open("Resources/person_small_icon.png"))
 group_image = ImageTk.PhotoImage(Image.open("Resources/group_icon.png"))
 lock_image = ImageTk.PhotoImage(Image.open("Resources/lock_icon.png"))
@@ -405,11 +421,13 @@ main_page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
 m_dispense_frame = tk.Frame(main_page, bg="#98F3F9")
 m_dispense_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0, anchor="nw")
-
+m_dispense_button = tk.Button(m_dispense_frame, bg="#98F3F9", image=dispense_image, text=" Dispense", compound="left", activebackground="#98F3F9", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=dispense_button)
+m_dispense_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
 m_refill_frame = tk.Frame(main_page, bg="#98F3F9")
 m_refill_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0.5, anchor="nw")
-
+m_refill_button = tk.Button(m_refill_frame, bg="#98F3F9", image=refill_image, text=" Refill", compound="left", activebackground="#98F3F9", relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=refill_button)
+m_refill_button.place(relwidth = 1, relheight=1, relx=0, rely=0.5, anchor="w")
 
 m_status_frame = tk.Frame(main_page, bg="#F2F2F2")
 m_status_frame.place(relwidth=0.4, relheight=0.1, relx=1, rely=0, anchor="ne")
@@ -461,7 +479,7 @@ p_right_button.place(relx=0.96, rely=0.5, anchor="e")
 p_back_button = tk.Button(pill_page, image=back_icon_image, bg="#98f9cf", activebackground="#60F2B0", relief="sunken", borderwidth=0, command = goto_main_page_button)
 p_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.16, anchor="nw")
 
-p_pill_button = tk.Button(pill_page, image = pill_images[0], bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = lambda:pill_select_button(current_pill))
+p_pill_button = tk.Button(pill_page, image = pill_images[0], bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = lambda:goto_pill_detail_page_button(current_pill))
 p_pill_button.place(relx=0.5, rely=0.5, relwidth=0.3, relheight=0.4, anchor ="c")
 
 #p_pill_left_label = tk.Label(pill_page, image = pill_images[0], bg="#98f9cf")
@@ -481,10 +499,10 @@ pd_pill_name_button.place(relx=0.5, rely=0.08, relwidth=0.5, relheight=0.16, anc
 pd_pill_button = tk.Label(pill_detail_page, image = pill_images_small[1], bg="#B7F4DA", activebackground="#B7F4DA", relief="sunken", borderwidth=0)
 pd_pill_button.place(relx=0.9, rely=0, relwidth=0.12, relheight=0.16, anchor ="ne")
 
-pd_open_button = tk.Button(pill_detail_page, text="Open", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=pill_dispenser_open(current_pill))
+pd_open_button = tk.Button(pill_detail_page, text="Open", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=lambda:pill_dispenser_open(current_pill))
 pd_open_button.place(relx=0.35, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
 
-pd_edit_button = tk.Button(pill_detail_page, text="Edit", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA")
+pd_edit_button = tk.Button(pill_detail_page, text="Edit", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=lambda:goto_pill_edit_page_button(current_pill))
 pd_edit_button.place(relx=0.65, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
 
 pd_calendar_frame = tk.Frame(pill_detail_page, bg="#98f9cf", highlightbackground="white", highlightthickness=2)
@@ -541,6 +559,86 @@ pd_cal_lines[9].place(width=2, relheight=1, relx=9/12, rely=0, anchor="n")
 pd_cal_lines[10].place(width=2, relheight=1, relx=10/12, rely=0, anchor="n")
 pd_cal_lines[11].place(width=2, relheight=1, relx=11/12, rely=0, anchor="n")
 
+pd_quantity_frame = tk.Frame(pill_detail_page, bg="#B7F4DA")
+pd_quantity_frame.place(relx=0.75, rely=0.25, relwidth=0.20, relheight=0.2)
+pd_quantity_label = tk.Label(pd_quantity_frame, bg="#B7F4DA", font=("Trebuchet MS", 16), text = "Quantity: 123", anchor="w")
+pd_quantity_label.place(relx=0, rely=0, relwidth=1, relheight=0.5)
+pd_empty_label = tk.Label(pd_quantity_frame, bg="#B7F4DA", font=("Trebuchet MS", 16), text = "Empty Date: ", anchor="w")
+pd_empty_label.place(relx=0, rely=0.5, relwidth=1, relheight=0.5)
+
+#Pill Edit Page
+
+pill_edit_page = Page(window, bg="#B7F4DA")
+pill_edit_page.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+pe_menu_frame = tk.Frame(pill_edit_page, bg="#98F9CF")
+pe_menu_frame.place(relx = 0, rely = 0, relwidth = 0.12, relheight = 1)
+
+pe_back_button = tk.Button(pe_menu_frame, image=back_icon_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, command=lambda:goto_pill_detail_page_button(current_pill), anchor = "c")
+pe_back_button.place(relx=0.5, rely=0.0, relheight=0.16, relwidth=1, anchor="n")
+
+pe_pill_button = tk.Button(pe_menu_frame, image=pill_icon_simple_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c")
+pe_pill_button.place(relx=0.5, rely=0.16, relheight=0.21, relwidth=1, anchor="n")
+
+pe_calendar_button = tk.Button(pe_menu_frame, image=calendar_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c")
+pe_calendar_button.place(relx=0.5, rely=0.37, relheight=0.21, relwidth=1, anchor="n")
+
+
+pe_pill_frame = tk.Frame(pill_edit_page, bg="#B7F4DA")
+pe_pill_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
+
+pe_pill_title = tk.Label(pe_pill_frame, bg="#B7F4DA", font=("Trebuchet MS",24,"underline"), text="Medicine Information", padx=10, pady=10, anchor="w")
+pe_pill_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
+
+pe_pill_name_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
+pe_pill_name_label = tk.Label(pe_pill_name_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Name: ", padx=10, pady=10, anchor="w")
+pe_pill_name_button = tk.Button(pe_pill_name_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", command = lambda: open_keyboard_button(pill_edit_page, pe_pill_name_label, pe_pill_name_button))
+pe_pill_name_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
+pe_pill_name_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
+pe_pill_name_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
+
+pe_icon_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
+pe_icon_label = tk.Label(pe_icon_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Icon: ", padx=10, pady=10, anchor="w")
+pe_icon_button = tk.Label(pe_icon_frame, bg="#98F9CF", image=pill_images_small[1], relief="sunken", borderwidth=2)
+pe_icon_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.12)
+pe_icon_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
+pe_icon_button.place(relx = 0.3, rely = 0, relwidth = 0.2, relheight = 1)
+
+pe_icon_shape_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
+pe_icon_shape_label = tk.Label(pe_icon_shape_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Shape: ", padx=10, pady=10, anchor="w")
+pe_icon_shape_button_0 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="0")
+pe_icon_shape_button_1 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="1")
+pe_icon_shape_button_2 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="2")
+pe_icon_shape_button_3 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="3")
+pe_icon_shape_button_4 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="4")
+pe_icon_shape_button_5 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="5")
+pe_icon_shape_button_6 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="6")
+pe_icon_shape_frame.place(relx = 0.05, rely = 0.48, relwidth = 0.9, relheight = 0.08)
+pe_icon_shape_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
+pe_icon_shape_button_0.place(relx = 0.3, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_1.place(relx = 0.4, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_2.place(relx = 0.5, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_3.place(relx = 0.6, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_4.place(relx = 0.7, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_5.place(relx = 0.8, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_button_6.place(relx = 0.9, rely = 0, relwidth = 0.1, relheight = 1)
+
+pe_icon_colour_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
+pe_icon_colour_label = tk.Label(pe_icon_colour_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Colour: ", padx=10, pady=10, anchor="w")
+pe_icon_colour_button_1 = tk.Button(pe_icon_colour_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666")
+pe_icon_colour_frame.place(relx = 0.05, rely = 0.60, relwidth = 0.9, relheight = 0.08)
+pe_icon_colour_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
+pe_icon_colour_button_1.place(relx = 0.3, rely = 0, relwidth = 0.2, relheight = 1)
+
+
+pe_lines = []
+for line_count in range(4):
+    pe_lines.append(tk.Frame(pe_menu_frame, bg="white"))
+pe_lines[0].place(width=2, relheight=1, relx=1, rely=0, anchor="ne")
+pe_lines[1].place(relwidth=1, height=2, relx=0, rely=0.16, anchor="w")
+pe_lines[2].place(relwidth=1, height=2, relx=0, rely=0.37, anchor="w")
+pe_lines[3].place(relwidth=1, height=2, relx=0, rely=0.58, anchor="w")
+
 #Quantity Page
 
 quantity_page = Page(window, bg="#F7EF99")
@@ -590,7 +688,6 @@ a_general_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08
 a_email_frame = tk.Frame(a_general_frame, bg="#F4E3CD")
 a_email_label = tk.Label(a_email_frame, bg="#F4E3CD", font=("Trebuchet MS",20), text="Email: ", padx=10, pady=10, anchor="w")
 a_email_button = tk.Label(a_email_frame, bg="#F4D297", activebackground="#F4D297", borderwidth=2, relief="sunken", padx=10, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666")
-
 a_email_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
 a_email_label.place(relx = 0, rely = 0, relwidth = 0.2, relheight = 1)
 a_email_button.place(relx = 0.2, rely = 0, relwidth = 0.8, relheight = 1)
