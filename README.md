@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/justinfidelis/Orbital-Cygnus.git">
-    <img src="![image](https://user-images.githubusercontent.com/65007534/120194303-0743fb00-c250-11eb-9721-fc99990c695d.png)" alt="Logo" width="80" height="80">
+    ![image](https://user-images.githubusercontent.com/65007534/120194303-0743fb00-c250-11eb-9721-fc99990c695d.png)
   </a>
 
   <h3 align="center">PillBot</h3>
