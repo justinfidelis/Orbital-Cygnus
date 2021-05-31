@@ -9,18 +9,12 @@
       </ul>
     </li>
     <li>
-      <a href="#getting-started">Getting Started</a>
+      <a href="#code-details">Code Details</a>
       <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
+        <li><a href="#gradle-build-scripts">Gradle Build Scripts</a></li>
+        <li><a href="#components">Components</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
   </ol>
 </details>
 
@@ -35,30 +29,19 @@ The project details an android martphone application to be used in conjunction w
 
 ### Built With
 
-* [](Android Studio)
+* Android Studio
 
 
 
-<!-- GETTING STARTED -->
-## Getting Started
+<!-- CODE DETAILS -->
+## Code Details
 
-To get a local copy up and running follow these simple steps.
 
-### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
-* npm
-  ```sh
-  npm install npm@latest -g
-  ```
+### Gradle Build Scripts
 
-### Installation
 
-1. Clone the repo
-   ```sh
-   git clone https://github.com/github_username/repo_name.git
-   ```
-2. Install NPM packages
-   ```sh
-   npm install
-   ```
+
+### Components
+
+
