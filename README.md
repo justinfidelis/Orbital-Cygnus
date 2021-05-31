@@ -39,15 +39,15 @@ The following describes the basic features that have been or are to be added.
 ### Dependencies
 
 The following dependencies are to be imported onto Android Studio on top of the existing ones:
-(1) implementation 'androidx.cardview:cardview:1.0.0'
-(2) implementation 'com.github.VishnuSivadasVS:Advanced-HttpURLConnection:1.2'
-(3) implementation 'androidx.navigation:navigation-fragment-ktx:2.3.5'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.3.5'
+* implementation 'androidx.cardview:cardview:1.0.0'
+* implementation 'com.github.VishnuSivadasVS:Advanced-HttpURLConnection:1.2'
+* implementation 'androidx.navigation:navigation-fragment-ktx:2.3.5'
+* implementation 'androidx.navigation:navigation-ui-ktx:2.3.5'
 
 The purpose of each dependency is as follows:
-(1) allows for displays to be stacked on top of each other
-(2) enable communication of information between the android application and the MySQL server
-(3) allows for navigation between activties, fragments or other components
+* allows for displays to be stacked on top of each other
+* enable communication of information between the android application and the MySQL server
+* allows for navigation between activties, fragments or other components
 
 
 ### Activities and Fragments
