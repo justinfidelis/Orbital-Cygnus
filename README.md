@@ -1,14 +1,3 @@
-<!-- PROJECT LOGO -->
-<br />
-<p align="center">
-  <a href="https://github.com/justinfidelis/Orbital-Cygnus.git">
-    ![image](https://user-images.githubusercontent.com/65007534/120194452-3195b880-c250-11eb-8c7a-f7395db1eadc.png)
-  </a>
-
-  <h3 align="center">PillBot</h3>
-
-</p>
-
 <!-- TABLE OF CONTENTS -->
 <details open="open">
   <summary><h2 style="display: inline-block">Table of Contents</h2></summary>
