@@ -10,41 +10,71 @@ class Page(tk.Frame):
         return
 
 class pill:
-    def __init__(self, name, icon_id, qty):
+    def __init__(self, name, icon_shape, icon_colour, qty):
         self.name = name
-        self.icon_id = icon_id
+        self.icon_shape = icon_shape
+        self.icon_colour = icon_colour
         self.qty = qty
+        return
 
-def start_button():
+def get_icon_id(icon_shape, icon_colour):
+    if icon_shape == -1:
+        return 0
+    return 6 * icon_shape + icon_colour + 1
+
+def get_icon_id_pill(pill):
+    if pill.icon_shape == -1:
+        return 0
+    return 6 * pill.icon_shape + pill.icon_colour + 1
+
+class user:
+    def __init__(self, email, username, first_name, last_name, share_user1, share_user2, share_user3):
+        self.email = email
+        self.username = username
+        self.first_name = first_name
+        self.last_name = last_name
+        self.share_user1 = share_user1
+        self.share_user2 = share_user2
+        self.share_user3 = share_user3
+        return
+
+#Initial startup button
+def start_button(): 
     if app_mode == 0:
         setup_page.lift()
     else:
         main_page.lift()
     return
 
+#Dispense pills into pill container
 def dispense_button():
     #hardware dispense function
     return
 
+#Dispense pills into tray
 def refill_button():
     #hardware refill function
     return
 
+#Go to pill page
 def goto_pill_page_button():
     pill_page.lift()
     pill_update_pill_icons()
     return
 
+#Go to quantity page
 def goto_quantity_page_button():
     quantity_page.lift()
     return
 
+#Go to settings page
 def goto_setting_page_button():
     settings_page.lift()
     s_wifi_frame.lift()
     s_wifi_button.configure(background="#F28E6D")
     return
 
+#Go to account page
 def goto_account_page_button():
     account_page.lift()
     a_general_frame.lift()
@@ -54,10 +84,12 @@ def goto_account_page_button():
     a_logout_button.configure(background="#F4D297")
     return
 
+#Go to main page
 def goto_main_page_button():
     main_page.lift()
     return
 
+#Open keyboard; page: Page to return to after closing keyboard, label: Label that contains input title, button: Button that stores input text
 def open_keyboard_button(page, label, button):
     global current_entry_button, current_page
     keyboard_page.lift()
@@ -70,8 +102,9 @@ def open_keyboard_button(page, label, button):
     k_title.configure(text=label.cget("text"))
     current_entry_button = button
     current_page = page
+    return
 
-
+#Keyboard Page: Takes in ASCII value, and bool values for CAPS and Shift, returns corresponding characeter 
 def capitalise(asc, c, s):
     if (c != s) and (asc >= ord('a') and asc <= ord('z')):
         return asc - 32
@@ -120,7 +153,7 @@ def capitalise(asc, c, s):
             return ord('?')
     return asc
 
-
+#Keyboard Page: Takes in ASCII value of the key that was pressed
 def keyboard_type_button(asc):
     global shift, capslock
     if shift or capslock:
@@ -132,20 +165,24 @@ def keyboard_type_button(asc):
         k_button_shift.configure(relief="groove")
     return
 
+#Keyboard Page: Backspace key
 def keyboard_backspace_button():
     index = k_entry.index("insert")
     k_entry.delete(index-1, index) 
     return
 
+#Keyboard Page: Delete key
 def keyboard_delete_button():
     index = k_entry.index("insert")
     k_entry.delete(index)
     return
 
+#Keyboard Page: Clear key: clears entry field
 def keyboard_clear_button():
     k_entry.delete(0, "end")
     return
 
+#Keyboard Page: CAPS key: switches CAPSLOCK on/off
 def keyboard_capslock_button():
     global capslock
     if capslock:
@@ -155,6 +192,7 @@ def keyboard_capslock_button():
     capslock = not capslock
     return
 
+#Keyboard Page: Shift key: switches Shift on/off
 def keyboard_shift_button():
     global shift
     shift = not shift
@@ -164,47 +202,159 @@ def keyboard_shift_button():
         k_button_shift.configure(relief="groove")
     return
 
+#Keyboard Page: Enter key: updates button that stores the input text and returns to previous page
 def keyboard_enter_button():
     current_entry_button.configure(text=k_entry.get())
     current_page.lift()
     return
 
+#Keyboard Page: Cancel key: returns to previous page, input values are lost
 def keyboard_cancel_button():
     current_page.lift()
     return
 
+#Pill Page: Switches to left pill
 def pill_left_nav_button():
     global current_pill, pills
     current_pill = (current_pill - 1) % len(pills)
     pill_update_pill_icons()
     return
 
+#Pill Page: Switches to right pill
 def pill_right_nav_button():
     global current_pill
     current_pill = (current_pill + 1) % len(pills)
     pill_update_pill_icons()
     return
 
+#Pill Page: Update current pill
 def pill_update_pill_icons():
     p_pill_name_label.configure(text=pills[current_pill].name)
-    p_pill_button.configure(image=pill_images[pills[current_pill].icon_id])
+    p_pill_button.configure(image=pill_images[get_icon_id_pill(pills[current_pill])])
     return
 
+#Pill Detail Page: Update page with current pill information 
 def pill_detail_page_update(pill_index):
     pd_pill_name_button.configure(text=pills[pill_index].name)
-    pd_pill_button.configure(image=pill_images_small[pills[pill_index].icon_id])
+    pd_pill_button.configure(image=pill_images_small[get_icon_id_pill(pills[pill_index])])
     return
 
+#Go to pill detail page
 def goto_pill_detail_page_button(pill_index):
     pill_detail_page_update(pill_index)
     pill_detail_page.lift()
     return
 
-def pill_edit_page_update(pill_index):
+#Pill Edit Page: Enable pill icon buttons
+def pill_edit_page_icons_enable(shape_id, colour_id):
+    pe_icon_shape_buttons[0].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(0))
+    pe_icon_shape_buttons[1].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(1))
+    pe_icon_shape_buttons[2].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(2))
+    pe_icon_shape_buttons[3].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(3))
+    pe_icon_shape_buttons[4].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(4))
+    pe_icon_shape_buttons[5].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(5))
+    pe_icon_shape_buttons[6].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_shape_button(6))
+    pe_icon_shape_buttons[shape_id].configure(relief="sunken", bg="#98F9CF", activebackground="#98F9CF", borderwidth=2)
+    
+    pe_icon_colour_buttons[0].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(0))
+    pe_icon_colour_buttons[1].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(1))
+    pe_icon_colour_buttons[2].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(2))
+    pe_icon_colour_buttons[3].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(3))
+    pe_icon_colour_buttons[4].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(4))
+    pe_icon_colour_buttons[5].configure(relief="flat", bg="#B7F4DA", activebackground="#98F9CF", borderwidth=2, command=lambda:pill_edit_pill_colour_button(5))
+    pe_icon_colour_buttons[colour_id].configure(relief="sunken", bg="#98F9CF", activebackground="#98F9CF", borderwidth=2)
+
     return
 
-def goto_pill_edit_page_button(pill_index):
+#Pill Edit Page: Disable pill icon buttons
+def pill_edit_page_icons_disable(shape_id, colour_id):
+    for i in range(7):
+        if i == shape_id:
+            pe_icon_shape_buttons[i].configure(relief="sunken", bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, command="")
+        else:
+            pe_icon_shape_buttons[i].configure(relief="sunken", bg="#B7F4DA", activebackground="#B7F4DA", borderwidth=0, command="")
+    for i in range(6):
+        if i == colour_id:
+            pe_icon_colour_buttons[i].configure(relief="sunken", bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, command="")
+        else:
+            pe_icon_colour_buttons[i].configure(relief="sunken", bg="#B7F4DA", activebackground="#B7F4DA", borderwidth=0, command="")
+    return
+
+def pill_edit_page_update():
+    pe_pill_name_button.configure(text=pills[current_pill].name)
+    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+    return
+
+def goto_pill_edit_page_button():
+    pill_edit_page_update()
+    pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
+    pe_pill_frame.lift()
+    pe_pill_button.configure(bg="#60F2B0")
+    pe_calendar_button.configure(bg="#98F9CF")
     pill_edit_page.lift()
+    return
+
+def pill_edit_pill_edit_button():
+    global temp_pill
+    pe_pill_edit_button.configure(state="disabled")
+    pe_pill_save_button.configure(state="normal")
+    pe_pill_cancel_button.configure(state="normal")
+    pe_pill_name_button.configure(state="normal", cursor="xterm")
+    temp_pill.name = pills[current_pill].name
+    temp_pill.icon_colour = pills[current_pill].icon_colour
+    temp_pill.icon_shape = pills[current_pill].icon_shape
+    pill_edit_page_icons_enable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
+    return
+
+def pill_edit_pill_save_button():
+    pe_pill_edit_button.configure(state="normal")
+    pe_pill_save_button.configure(state="disabled")
+    pe_pill_cancel_button.configure(state="disabled")
+    temp_pill.name = pe_pill_name_button.cget("text")
+    pills[current_pill].name = temp_pill.name
+    pills[current_pill].icon_colour = temp_pill.icon_colour
+    pills[current_pill].icon_shape = temp_pill.icon_shape
+    pe_pill_name_button.configure(state="disabled", cursor="left_ptr", text=pills[current_pill].name)
+    pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
+    #Update database
+    return
+
+def pill_edit_pill_cancel_button():
+    pe_pill_edit_button.configure(state="normal")
+    pe_pill_save_button.configure(state="disabled")
+    pe_pill_cancel_button.configure(state="disabled")
+    pe_pill_name_button.configure(state="disabled", cursor="left_ptr", text=pills[current_pill].name)
+    pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
+    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+    #Update database
+    return
+
+def pill_edit_pill_shape_button(shape_id):
+    global temp_pill
+    pe_icon_shape_buttons[temp_pill.icon_shape].configure(relief="flat", bg="#B7F4DA")
+    temp_pill.icon_shape = shape_id
+    pe_icon_shape_buttons[shape_id].configure(relief="sunken", bg="#98F9CF")
+    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(temp_pill)])
+    return
+
+def pill_edit_pill_colour_button(colour_id):
+    global temp_pill
+    pe_icon_colour_buttons[temp_pill.icon_colour].configure(relief="flat", bg="#B7F4DA")
+    temp_pill.icon_colour = colour_id
+    pe_icon_colour_buttons[colour_id].configure(relief="sunken", bg="#98F9CF")
+    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(temp_pill)])
+    return
+
+def pill_edit_pill_button():
+    pe_pill_button.configure(bg="#60F2B0")
+    pe_calendar_button.configure(bg="#98F9CF")
+    pe_pill_frame.lift()
+    return
+
+def pill_edit_calendar_button():
+    pe_pill_button.configure(bg="#98F9CF")
+    pe_calendar_button.configure(bg="#60F2B0")
+    pe_calendar_frame.lift()
     return
 
 def pill_dispenser_open(index):
@@ -245,16 +395,16 @@ def account_logout_button():
     return
 
 def account_general_edit_button():
-    global temp_first_name, temp_last_name, temp_username
+    global temp_user
     a_general_edit_button.configure(state="disabled")
     a_general_save_button.configure(state="normal")
     a_general_cancel_button.configure(state="normal")
     a_first_name_button.configure(state="normal", cursor="xterm")
     a_last_name_button.configure(state="normal", cursor="xterm")
     a_username_button.configure(state="normal", cursor="xterm")
-    temp_first_name = a_first_name_button.cget("text")
-    temp_last_name = a_last_name_button.cget("text")
-    temp_username = a_username_button.cget("text")
+    temp_user.first_name = a_first_name_button.cget("text")
+    temp_user.last_name = a_last_name_button.cget("text")
+    temp_user.username = a_username_button.cget("text")
     return
 
 def account_general_save_button():
@@ -271,22 +421,22 @@ def account_general_cancel_button():
     a_general_edit_button.configure(state="normal")
     a_general_save_button.configure(state="disabled")
     a_general_cancel_button.configure(state="disabled")
-    a_first_name_button.configure(state="disabled", cursor="left_ptr", text=temp_first_name)
-    a_last_name_button.configure(state="disabled", cursor="left_ptr", text=temp_last_name)
-    a_username_button.configure(state="disabled", cursor="left_ptr", text=temp_username)
+    a_first_name_button.configure(state="disabled", cursor="left_ptr", text=temp_user.first_name)
+    a_last_name_button.configure(state="disabled", cursor="left_ptr", text=temp_user.last_name)
+    a_username_button.configure(state="disabled", cursor="left_ptr", text=temp_user.username)
     return
 
 def account_sharing_edit_button():
-    global temp_sharing_user1, temp_sharing_user2, temp_sharing_user3
+    global temp_user
     a_sharing_edit_button.configure(state="disabled")
     a_sharing_save_button.configure(state="normal")
     a_sharing_cancel_button.configure(state="normal")
     a_sharing_user1_button.configure(state="normal", cursor="xterm")
     a_sharing_user2_button.configure(state="normal", cursor="xterm")
     a_sharing_user3_button.configure(state="normal", cursor="xterm")
-    temp_sharing_user1 = a_sharing_user1_button.cget("text")
-    temp_sharing_user2 = a_sharing_user2_button.cget("text")
-    temp_sharing_user3 = a_sharing_user3_button.cget("text")
+    temp_user.share_user1 = a_sharing_user1_button.cget("text")
+    temp_user.share_user2 = a_sharing_user2_button.cget("text")
+    temp_user.share_user3 = a_sharing_user3_button.cget("text")
     return
 
 def account_sharing_save_button():
@@ -354,19 +504,14 @@ app_mode = 1
 current_entry_button = None
 current_page = None
 
-temp_first_name = None
-temp_last_name = None
-temp_username = None
+temp_user = user("","","","","","","")
+temp_pill = pill("",0,0,0)
 
-temp_sharing_user1 = None
-temp_sharing_user2 = None
-temp_sharing_user3 = None
+add_pill = pill("Add Medicine", -1, 0, 1)
+pill_1 = pill("Aspirin", 1, 2, 100) #For testing only
+pill_2 = pill("Omeprazole", 2, 4, 100) #For testing only
 
-add_pill = pill("Add Medicine", 0, 1)
-pill_1 = pill("Aspirin", 5, 100)
-pill_2 = pill("Omeprazole", 4, 100)
-
-pills = [pill_1, pill_2, add_pill]
+pills = [pill_1, pill_2, add_pill] #For testing only
 
 current_pill = 0
 
@@ -393,14 +538,22 @@ logout_image = ImageTk.PhotoImage(Image.open("Resources/logout_icon.png"))
 wifi_image = ImageTk.PhotoImage(Image.open("Resources/wifi_icon.png"))
 pill_images = []
 pill_images_small = []
+pill_images_tiny = []
 pill_images.append(ImageTk.PhotoImage(Image.open("Resources/Pill_Icons/Add_Pill.png")))
 pill_images_small.append(ImageTk.PhotoImage(Image.open("Resources/Pill_Icons/Add_Pill.png")))
-for pill_counter in range(12):
-    with Image.open(f"Resources/Pill_Icons/Pill{math.floor(pill_counter/6)}{pill_counter % 6}.png") as temp_image:
+pill_images_tiny.append(ImageTk.PhotoImage(Image.open("Resources/Pill_Icons/Add_Pill.png")))
+for image_counter in range(42):
+    with Image.open(f"Resources/Pill_Icons/Pill{math.floor(image_counter/6)}{image_counter % 6}.png") as temp_image:
         pill_images.append(ImageTk.PhotoImage(temp_image))
-        temp_image_small = temp_image.copy()
         temp_image.thumbnail((80,80))
         pill_images_small.append(ImageTk.PhotoImage(temp_image))
+        temp_image.thumbnail((40,40))
+        pill_images_tiny.append(ImageTk.PhotoImage(temp_image))
+colour_images = []
+for image_counter in range(6):
+    with Image.open(f"Resources/Pill_Icons/Colour{image_counter}.png") as temp_image:
+        temp_image.thumbnail((35,35))
+        colour_images.append(ImageTk.PhotoImage(temp_image))
 
 start_page = Page(window)
 start_page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -482,8 +635,6 @@ p_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.16, anchor="nw")
 p_pill_button = tk.Button(pill_page, image = pill_images[0], bg="#98f9cf", activebackground="#98f9cf", relief="sunken", borderwidth=0, command = lambda:goto_pill_detail_page_button(current_pill))
 p_pill_button.place(relx=0.5, rely=0.5, relwidth=0.3, relheight=0.4, anchor ="c")
 
-#p_pill_left_label = tk.Label(pill_page, image = pill_images[0], bg="#98f9cf")
-
 
 #Pill Details Page
 
@@ -502,7 +653,7 @@ pd_pill_button.place(relx=0.9, rely=0, relwidth=0.12, relheight=0.16, anchor ="n
 pd_open_button = tk.Button(pill_detail_page, text="Open", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=lambda:pill_dispenser_open(current_pill))
 pd_open_button.place(relx=0.35, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
 
-pd_edit_button = tk.Button(pill_detail_page, text="Edit", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=lambda:goto_pill_edit_page_button(current_pill))
+pd_edit_button = tk.Button(pill_detail_page, text="Edit", font=("Trebuchet MS", 20), bg="#98f9cf", relief="groove", borderwidth=2, activebackground="#51F7AA", command=goto_pill_edit_page_button)
 pd_edit_button.place(relx=0.65, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
 
 pd_calendar_frame = tk.Frame(pill_detail_page, bg="#98f9cf", highlightbackground="white", highlightthickness=2)
@@ -577,10 +728,10 @@ pe_menu_frame.place(relx = 0, rely = 0, relwidth = 0.12, relheight = 1)
 pe_back_button = tk.Button(pe_menu_frame, image=back_icon_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, command=lambda:goto_pill_detail_page_button(current_pill), anchor = "c")
 pe_back_button.place(relx=0.5, rely=0.0, relheight=0.16, relwidth=1, anchor="n")
 
-pe_pill_button = tk.Button(pe_menu_frame, image=pill_icon_simple_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c")
+pe_pill_button = tk.Button(pe_menu_frame, image=pill_icon_simple_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c", command=pill_edit_pill_button)
 pe_pill_button.place(relx=0.5, rely=0.16, relheight=0.21, relwidth=1, anchor="n")
 
-pe_calendar_button = tk.Button(pe_menu_frame, image=calendar_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c")
+pe_calendar_button = tk.Button(pe_menu_frame, image=calendar_image, bg="#98F9CF", activebackground="#60F2B0", relief="sunken", borderwidth=0, anchor = "c", command=pill_edit_calendar_button)
 pe_calendar_button.place(relx=0.5, rely=0.37, relheight=0.21, relwidth=1, anchor="n")
 
 
@@ -599,36 +750,44 @@ pe_pill_name_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
 
 pe_icon_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
 pe_icon_label = tk.Label(pe_icon_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Icon: ", padx=10, pady=10, anchor="w")
-pe_icon_button = tk.Label(pe_icon_frame, bg="#98F9CF", image=pill_images_small[1], relief="sunken", borderwidth=2)
-pe_icon_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.12)
+pe_icon_button = tk.Label(pe_icon_frame, bg="#B7F4DA", image=pill_images_small[1], relief="flat", borderwidth=2)
+pe_icon_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.16)
 pe_icon_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
 pe_icon_button.place(relx = 0.3, rely = 0, relwidth = 0.2, relheight = 1)
 
 pe_icon_shape_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
 pe_icon_shape_label = tk.Label(pe_icon_shape_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Shape: ", padx=10, pady=10, anchor="w")
-pe_icon_shape_button_0 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="0")
-pe_icon_shape_button_1 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="1")
-pe_icon_shape_button_2 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="2")
-pe_icon_shape_button_3 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="3")
-pe_icon_shape_button_4 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="4")
-pe_icon_shape_button_5 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="5")
-pe_icon_shape_button_6 = tk.Button(pe_icon_shape_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666", text="6")
-pe_icon_shape_frame.place(relx = 0.05, rely = 0.48, relwidth = 0.9, relheight = 0.08)
+pe_icon_shape_frame.place(relx = 0.05, rely = 0.52, relwidth = 0.9, relheight = 0.08)
 pe_icon_shape_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
-pe_icon_shape_button_0.place(relx = 0.3, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_1.place(relx = 0.4, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_2.place(relx = 0.5, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_3.place(relx = 0.6, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_4.place(relx = 0.7, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_5.place(relx = 0.8, rely = 0, relwidth = 0.1, relheight = 1)
-pe_icon_shape_button_6.place(relx = 0.9, rely = 0, relwidth = 0.1, relheight = 1)
+pe_icon_shape_buttons = []
+for pe_count in range (7):
+    pe_icon_shape_buttons.append(tk.Button(pe_icon_shape_frame, bg="#B7F4DA", activebackground="#98F9CF", image=pill_images_tiny[6*(pe_count + 1)],  borderwidth=2, relief="flat", padx=5, pady=10, font=("Trebuchet MS",20), anchor="c", disabledforeground="#666666"))
+    pe_icon_shape_buttons[pe_count].place(relx = 0.3 + (pe_count * 0.1), rely = 0, relwidth = 0.1, relheight = 1)
 
 pe_icon_colour_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
 pe_icon_colour_label = tk.Label(pe_icon_colour_frame, bg="#B7F4DA", font=("Trebuchet MS",20), text="Pill Colour: ", padx=10, pady=10, anchor="w")
-pe_icon_colour_button_1 = tk.Button(pe_icon_colour_frame, bg="#98F9CF", activebackground="#98F9CF", borderwidth=2, relief="sunken", padx=5, pady=10, font=("Trebuchet MS",20), anchor="w", state="disabled", disabledforeground="#666666")
-pe_icon_colour_frame.place(relx = 0.05, rely = 0.60, relwidth = 0.9, relheight = 0.08)
+
+pe_icon_colour_frame.place(relx = 0.05, rely = 0.64, relwidth = 0.9, relheight = 0.08)
 pe_icon_colour_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
-pe_icon_colour_button_1.place(relx = 0.3, rely = 0, relwidth = 0.2, relheight = 1)
+pe_icon_colour_buttons = []
+
+for pe_count in range (6):
+    pe_icon_colour_buttons.append(tk.Button(pe_icon_colour_frame, bg="#B7F4DA", activebackground="#98F9CF", image=colour_images[pe_count],  borderwidth=2, relief="flat", padx=5, pady=10, font=("Trebuchet MS",20), anchor="c", disabledforeground="#666666"))
+    pe_icon_colour_buttons[pe_count].place(relx = 0.3 + (pe_count * 0.1), rely = 0, relwidth = 0.1, relheight = 1)
+
+pe_pill_button_frame = tk.Frame(pe_pill_frame, bg="#B7F4DA")
+pe_pill_edit_button = tk.Button(pe_pill_button_frame, bg="#B7F4DA", activebackground="#98F9CF", font=("Trebuchet MS",20), text="Edit", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=pill_edit_pill_edit_button)
+pe_pill_save_button = tk.Button(pe_pill_button_frame, bg="#B7F4DA", activebackground="#98F9CF", font=("Trebuchet MS",20), text="Save", padx=10, pady=10, anchor="c", state="disabled", disabledforeground="#666666", command=pill_edit_pill_save_button)
+pe_pill_cancel_button = tk.Button(pe_pill_button_frame, bg="#B7F4DA", activebackground="#98F9CF", font=("Trebuchet MS",20), text="Cancel", padx=10, pady=10, anchor="c", state="disabled", disabledforeground="#666666", command=pill_edit_pill_cancel_button)
+pe_pill_button_frame.place(relx = 0.05, rely = 0.84, relwidth = 0.9, relheight = 0.08)
+pe_pill_edit_button.place(relx = 0.1, rely = 0, relwidth = 0.2, relheight = 1)
+pe_pill_save_button.place(relx = 0.4, rely = 0, relwidth = 0.2, relheight = 1)
+pe_pill_cancel_button.place(relx = 0.7, rely = 0, relwidth = 0.2, relheight = 1)
+
+
+
+pe_calendar_frame = tk.Frame(pill_edit_page, bg="#B7F4DA")
+pe_calendar_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
 
 
 pe_lines = []
