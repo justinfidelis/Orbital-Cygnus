@@ -11,7 +11,7 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="192"
    inkscape:export-xdpi="192"
-   inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\bitmap.png"
+   inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\delete_icon.png"
    sodipodi:docname="Icon Drawings.svg"
    inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
    id="svg8"
@@ -173,6 +173,7 @@
        y2="103.95795" />
   </defs>
   <sodipodi:namedview
+     inkscape:snap-object-midpoints="true"
      inkscape:object-nodes="true"
      inkscape:snap-grids="false"
      inkscape:lockguides="false"
@@ -183,8 +184,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.98994949"
-     inkscape:cx="278.45072"
-     inkscape:cy="543.73945"
+     inkscape:cx="89.012105"
+     inkscape:cy="1451.1367"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -218,7 +219,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1967,7 +1968,7 @@
       </g>
     </g>
     <g
-       transform="translate(332.06548,-97.099124)"
+       transform="translate(321.90924,-84.270186)"
        inkscape:export-ydpi="192"
        inkscape:export-xdpi="192"
        id="g5094-2-2">
@@ -2541,7 +2542,7 @@
        inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\wifi_icon.png"
        inkscape:export-xdpi="192"
        inkscape:export-ydpi="192"
-       transform="translate(0,136.94893)">
+       transform="translate(3.2979971e-6,139.59369)">
       <path
          id="path1966"
          style="fill:#040404;fill-opacity:1;stroke:#000000;stroke-width:0.2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
@@ -4250,5 +4251,109 @@
        cy="207.20982"
        rx="6.5000052"
        ry="6.5000067" />
+    <g
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\GUI_icon.png"
+       style="stroke-width:1.5;stroke-miterlimit:4;stroke-dasharray:none"
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       id="g1180-9"
+       transform="translate(475.39956,337.53274)">
+      <path
+         id="path1369-8-7-3-8"
+         style="fill:#ef0000;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="m 17.631536,56.284233 a 6.3674998,6.3674998 0 0 0 -8.8682901,1.563721 6.3674998,6.3674998 0 0 0 1.5637201,8.868298 l 8.79381,6.157493 7.30458,-10.432018 z" />
+      <path
+         d="m 35.219166,68.599222 a 6.3674998,6.3674998 0 0 1 1.56372,8.868296 6.3674998,6.3674998 0 0 1 -8.8683,1.563721 l -8.79381,-6.157493 7.30458,-10.432019 z"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path1369-7-8-6-8-4" />
+      <path
+         d="m 8.7632447,57.847956 a 6.3674997,6.3674997 0 0 0 1.5637183,8.868299 l 8.793813,6.157491 3.652495,-5.216302"
+         style="fill:#da0000;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path929-81" />
+      <path
+         d="m 36.782883,77.467519 a 6.3674997,6.3674997 0 0 1 -8.868296,1.563722 l -8.793811,-6.157492 3.652495,-5.216305"
+         style="fill:#eaeaea;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path926-12" />
+    </g>
+    <path
+       id="path1513"
+       d="m 15.208155,376.56028 23,-23"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 38.208155,376.56028 -23,-23"
+       id="path1513-0" />
+    <g
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\delete_icon.png"
+       id="g1590">
+      <path
+         id="rect1539"
+         style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none"
+         d="m 41.5,401.5 v 19.31842 c 0,1.46389 1.177277,2.64227 2.639838,2.64227 h 13.200104 c 1.462559,0 2.640293,-1.17838 2.640293,-2.64227 V 401.5 Z" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 38.240117,398 H 63.240118"
+         id="path1549" />
+      <rect
+         style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none"
+         id="rect1551"
+         width="6"
+         height="2.5"
+         x="47.740116"
+         y="395.5" />
+    </g>
+    <circle
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\clock_icon.png"
+       r="13.75"
+       cy="415"
+       cx="90"
+       id="path1592"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none" />
+    <path
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\clock_icon.png"
+       id="path1594"
+       d="M 90,405.5 V 415"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\clock_icon.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 90,415 6.928204,4"
+       id="path1594-3" />
+    <path
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\history_icon.png"
+       d="m -8.4046106,416.40591 a 13.750001,13.750001 0 0 1 11.0675093,-13.48579 13.750001,13.750001 0 0 1 15.3858363,8.2239 13.750001,13.750001 0 0 1 -5.064254,16.6946 13.750001,13.750001 0 0 1 -17.3618097,-1.70999"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none"
+       id="path1592-8" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 5.3453905,406.90592 v 9.5"
+       id="path1594-1"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\history_icon.png"
+       inkscape:export-xdpi="192"
+       inkscape:export-ydpi="192" />
+    <path
+       id="path1594-3-1"
+       d="m 5.3453905,416.40592 6.9282045,4"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\history_icon.png"
+       inkscape:export-xdpi="192"
+       inkscape:export-ydpi="192" />
+    <path
+       inkscape:export-ydpi="192"
+       inkscape:export-xdpi="192"
+       inkscape:export-filename="C:\Users\justi\OneDrive\Documents\NUS\Year 1 Sem 2\CP2106\Orbital Project\RPiGUI\Resources\history_icon.png"
+       d="m -12.65468,416.40591 4.2500694,4.00005 4.2497025,-4.00005 h -4.2497025 z"
+       style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.99999;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect1650" />
   </g>
 </svg>
