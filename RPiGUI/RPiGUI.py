@@ -1,6 +1,8 @@
 import tkinter as tk
 from PIL import ImageTk,Image
 import math
+import time
+import pickle
 
 class Page(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -19,16 +21,10 @@ class pill:
         self.dosage_times = dosage_times
         self.dosage_amount = dosage_amount
         return
-
-def get_icon_id(icon_shape, icon_colour):
-    if icon_shape == -1:
-        return 0
-    return 6 * icon_shape + icon_colour + 1
-
-def get_icon_id_pill(pill):
-    if pill.icon_shape == -1:
-        return 0
-    return 6 * pill.icon_shape + pill.icon_colour + 1
+    def get_icon_id(self):
+        if self.icon_shape == -1:
+            return 0
+        return 6 * self.icon_shape + self.icon_colour + 1
 
 class user:
     def __init__(self, email, username, first_name, last_name, share_user1, share_user2, share_user3):
@@ -41,80 +37,178 @@ class user:
         self.share_user3 = share_user3
         return
 
+class day_time:
+    def __init__(self, hour, minute):
+        self.hour = hour
+        self.minute = minute
+        return
+    def to_string(self):
+        return f"{str(self.hour).zfill(2)}:{str(self.minute).zfill(2)}"
+    def from_string(self, string):
+        colon_index = string.find(":")
+        self.hour = int(string[0:colon_index])
+        self.minute = int(string[colon_index+1:])
+        return
+    def is_valid(self):
+        if self.hour >= 24 or self.minute >= 60:
+            return False
+        return True
+
+class storage:
+    def __init__(self, pills, times, mode):
+        self.pills = pills
+        self.times = times
+        self.mode = mode
+        return
+
+def save_offline_data():
+    temp_storage = storage(pills, times, app_mode)
+    with open("user_data.p", "wb") as file:
+        pickle.dump(temp_storage, file)
+    return
+
+def load_offline_data():
+    global pills, times, app_mode
+    try:
+        with open("user_data.p", "rb") as file:
+            temp_storage = pickle.load(open("user_data.p", "rb"))
+            pills = temp_storage.pills
+            times = temp_storage.times
+            app_mode = temp_storage.mode
+    except FileNotFoundError:
+        pill_1 = pill("Aspirin", 1, 2, 100, [True, True, True, True, True, True, True],[True, False, False, True], 1) #For testing only
+        pill_2 = pill("Omeprazole", 2, 4, 100, [False, True, True, True, True, True, False],[True, True, True, False], 2) #For testing only
+        pills = [pill_1, pill_2, add_pill]
+        times = [day_time(8,0), day_time(12,30), day_time(17,0), day_time(21,0)]
+        app_mode = 0
+    return
+
 #Initial startup button
 def start_button(): 
+    global at_main
+    load_offline_data()
     if app_mode == 0:
         setup_page.lift()
     else:
-        main_page.lift()
+        #if app_mode == 1:
+
+        #if app_mode == 2:
+        goto_main_page_button()
+    return
+
+def setup_offline_button_command():
+    global app_mode
+    app_mode = 1
+    goto_main_page_button()
+    return
+
+def setup_online_button_command():
+    global app_mode
+    app_mode = 2
+    #goto login page
+    return
+
+def main_time_update():
+    if at_main == True:
+        m_time_label.configure(text=time.strftime(" %H:%M"))
+        m_date_label.configure(text=time.strftime("%a, %d %B"))
+        m_time_label.after(1000, main_time_update)
     return
 
 #Dispense pills into pill container
 def dispense_button():
+    global at_main
     #hardware dispense function
     return
 
 #Dispense pills into tray
 def refill_button():
+    global at_main
     #hardware refill function
     return
 
 #Go to pill page
 def goto_pill_page_button():
+    global at_main
     pill_page.lift()
     pill_update_pill_icons()
+    at_main = False
     return
 
 #Go to quantity page
 def goto_quantity_page_button():
+    global at_main
     quantity_page.lift()
+    at_main = False
     return
 
 #Go to settings page
 def goto_setting_page_button():
+    global at_main
     settings_page.lift()
     setting_wifi_button()
+    at_main = False
     return
 
 #Go to account page
 def goto_account_page_button():
+    global at_main
     account_page.lift()
-    a_general_frame.lift()
-    a_general_button.configure(background=colours["a_menu_bn_p"])
-    a_sharing_button.configure(background=colours["a_menu_bn_u"])
-    a_password_button.configure(background=colours["a_menu_bn_u"])
-    a_logout_button.configure(background=colours["a_menu_bn_u"])
-    current_a_page == 0;
+    account_general_button()
+    at_main = False
     return
 
 #Go to main page
 def goto_main_page_button():
+    global at_main
+    at_main = True
+    main_time_update()
     main_page.lift()
     return
 
-def open_numpad_button(page, title, button, math):
-    global current_entry_button, current_page, numpad_number_1, numpad_operator
+
+def open_numpad_button(page, title, button, mode): #mode == 0: normal; 1: math; 2: time
+    global current_entry_button, current_page, numpad_operator, numpad_mode
+    numpad_mode = mode
     numpad_page.lift()
     n_entry.delete(0,"end")
     n_entry.insert(0,button.cget("text"))
     n_entry.icursor("end")
     n_title.configure(text=title)
-    numpad_number_1 = int(button.cget("text"))
     numpad_operator = 0
     current_entry_button = button
     current_page = page
-    if math:
-        n_button_plus.configure(state="normal", text="+")
-        n_button_minus.configure(state="normal", text="−")
+    if mode == 1:
+        n_button_special_1.configure(state="normal", text="+", command=lambda: numpad_math_button(1))
+        n_button_special_2.configure(state="normal", text="−", command=lambda: numpad_math_button(-1))
+    elif mode == 2:
+        n_button_special_1.configure(state="normal", text=":", command=numpad_colon_button)
+        n_button_special_2.configure(state="disabled", text="")
     else:
-        n_button_plus.configure(state="disabled", text="")
-        n_button_minus.configure(state="disabled", text="")
+        n_button_special_1.configure(state="disabled", text="")
+        n_button_special_2.configure(state="disabled", text="")
     return
 
 def numpad_type_button(number):
     n_entry.icursor("end")
-    if len(n_entry.get()) < 8:
+    if numpad_mode == 1:
+        if len(n_entry.get()) < 8:
+            n_entry.insert("end", number)
+        return
+    elif numpad_mode == 2:
+        colon_index = n_entry.get().find(":")
+        if len(n_entry.get()) < colon_index + 3:
+            n_entry.insert("end", number)
+        return
+    else:
         n_entry.insert("end", number)
+    return
+
+def numpad_colon_button():
+    n_entry.icursor("end")
+    n_entry_length = len(n_entry.get())
+    if ":" not in n_entry.get() and n_entry_length < 6 and n_entry_length > 0:
+        n_entry.insert("end", ":")
     return
 
 def numpad_backspace_button():
@@ -160,10 +254,26 @@ def numpad_enter_button():
         numpad_operator = 0
         n_button_enter.configure(text="Save")
     else:
+        if numpad_mode == 2:
+            time_valid = True
+            temp_string = n_entry.get()
+            colon_index = temp_string.find(":")
+            temp_time = day_time(0,0)
+            if colon_index == -1 or colon_index == len(temp_string) - 1:
+                temp_time.hour = int(temp_string.strip(":"))
+            else:
+                temp_time.from_string(temp_string)
+            if temp_time.is_valid():
+                n_entry.delete(0,"end")
+                n_entry.insert(0,temp_time.to_string())
+            else:
+                n_message.configure(text="Incorrect time format")
+                return
         current_entry_button.configure(text=n_entry.get())
         #<especially bad code>
         if current_entry_button == pd_qty_button:
             pills[current_pill].qty = int(n_entry.get())
+            save_offline_data()
             #update charts
             #update database
         #<\especially bad code>
@@ -319,14 +429,14 @@ def pill_right_nav_button():
 #Pill Page: Update current pill
 def pill_update_pill_icons():
     p_pill_name_label.configure(text=pills[current_pill].name)
-    p_pill_button.configure(image=pill_images[get_icon_id_pill(pills[current_pill])])
+    p_pill_button.configure(image=pill_images[pills[current_pill].get_icon_id()])
     p_message_label.configure(text="")
     return
 
 #Pill Detail Page: Update page with current pill information 
 def pill_detail_page_update(pill_index):
     pd_pill_name_button.configure(text=pills[pill_index].name)
-    pd_pill_button.configure(image=pill_images_small[get_icon_id_pill(pills[pill_index])])
+    pd_pill_button.configure(image=pill_images_small[pills[pill_index].get_icon_id()])
     pd_qty_button.configure(text=pills[pill_index].qty)
     return
 
@@ -336,8 +446,9 @@ def goto_pill_detail_page_button(pill_index):
         pill_detail_page_update(pill_index)
         pill_detail_page.lift()
     else:
-        pills.insert(len(pills)-1,pill("New",0,0,0,[True,True,True,True,True,True,True],[False,False,False,False],1))
+        pills.insert(len(pills)-1,pill("New Pill",0,0,0,[True,True,True,True,True,True,True],[False,False,False,False],1))
         goto_pill_edit_page_button()
+        pill_edit_pill_edit_button()
     return
 
 #Pill Edit Page: Enable pill icon buttons
@@ -377,7 +488,7 @@ def pill_edit_page_icons_disable(shape_id, colour_id):
 
 def pill_edit_page_update():
     pe_pill_name_button.configure(text=pills[current_pill].name)
-    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+    pe_icon_button.configure(image=pill_images_small[pills[current_pill].get_icon_id()])
     return
 
 def goto_pill_edit_page_button():
@@ -409,6 +520,7 @@ def pill_edit_pill_save_button():
     pills[current_pill].name = temp_pill.name
     pills[current_pill].icon_colour = temp_pill.icon_colour
     pills[current_pill].icon_shape = temp_pill.icon_shape
+    save_offline_data()
     pe_pill_name_button.configure(state="disabled", cursor="left_ptr", text=pills[current_pill].name)
     pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
     pe_pill_message_label.configure(text="")
@@ -423,7 +535,7 @@ def pill_edit_pill_cancel_button():
     pe_pill_cancel_button.configure(state="disabled")
     pe_pill_name_button.configure(state="disabled", cursor="left_ptr", text=pills[current_pill].name)
     pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
-    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+    pe_icon_button.configure(image=pill_images_small[pills[current_pill].get_icon_id()])
     pe_pill_message_label.configure(text="")
     pe_editing = False
     return
@@ -433,7 +545,7 @@ def pill_edit_pill_shape_button(shape_id):
     pe_icon_shape_buttons[temp_pill.icon_shape].configure(relief="flat", bg=colours["pe_content_bg"])
     temp_pill.icon_shape = shape_id
     pe_icon_shape_buttons[shape_id].configure(relief="sunken", bg=colours["pe_content_entry"])
-    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(temp_pill)])
+    pe_icon_button.configure(image=pill_images_small[temp_pill.get_icon_id()])
     return
 
 def pill_edit_pill_colour_button(colour_id):
@@ -441,7 +553,7 @@ def pill_edit_pill_colour_button(colour_id):
     pe_icon_colour_buttons[temp_pill.icon_colour].configure(relief="flat", bg=colours["pe_content_bg"])
     temp_pill.icon_colour = colour_id
     pe_icon_colour_buttons[colour_id].configure(relief="sunken", bg=colours["pe_content_entry"])
-    pe_icon_button.configure(image=pill_images_small[get_icon_id_pill(temp_pill)])
+    pe_icon_button.configure(image=pill_images_small[temp_pill.get_icon_id()])
     return
 
 def pill_edit_schedule_day_buttons_update(day, dosage_days):
@@ -536,6 +648,7 @@ def pill_edit_schedule_save_button():
     for count in range(4):
         pills[current_pill].dosage_times[count] = temp_pill.dosage_times[count]
     pills[current_pill].dosage_amount = temp_pill.dosage_amount
+    save_offline_data()
     pill_edit_schedule_buttons_disable()
     pe_schedule_message_label.configure(text="")
     pe_editing = False
@@ -566,6 +679,7 @@ def pill_edit_delete_delete_button():
 def pill_edit_delete_confirm_button():
     text = pills[current_pill].name
     pills.pop(current_pill)
+    save_offline_data()
     goto_pill_page_button()
     p_message_label.configure(text=f"{text} deleted sucessfully.")
     return
@@ -605,7 +719,7 @@ def pill_edit_schedule_button():
         for count in range(4):
             pill_edit_schedule_time_buttons_update(count, pills[current_pill].dosage_times)
         current_pe_page = 1
-        pe_schedule_pill_icon.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+        pe_schedule_pill_icon.configure(image=pill_images_small[pills[current_pill].get_icon_id()])
         pe_schedule_frame.lift()
         return
     if current_pe_page == 0:
@@ -623,7 +737,7 @@ def pill_edit_delete_button():
         pe_delete_delete_button.configure(state="normal")
         pe_delete_confirm_button.configure(state="disabled")
         current_pe_page = 2
-        pe_delete_pill_icon.configure(image=pill_images_small[get_icon_id_pill(pills[current_pill])])
+        pe_delete_pill_icon.configure(image=pill_images_small[pills[current_pill].get_icon_id()])
         pe_delete_frame.lift()
         return
     if current_pe_page == 0:
@@ -784,9 +898,9 @@ def account_sharing_cancel_button():
     a_sharing_edit_button.configure(state="normal")
     a_sharing_save_button.configure(state="disabled")
     a_sharing_cancel_button.configure(state="disabled")
-    a_sharing_user1_button.configure(state="disabled", cursor="left_ptr", text=temp_sharing_user1)
-    a_sharing_user2_button.configure(state="disabled", cursor="left_ptr", text=temp_sharing_user2)
-    a_sharing_user3_button.configure(state="disabled", cursor="left_ptr", text=temp_sharing_user3)
+    a_sharing_user1_button.configure(state="disabled", cursor="left_ptr", text=temp_user.share_user1)
+    a_sharing_user2_button.configure(state="disabled", cursor="left_ptr", text=temp_user.share_user2)
+    a_sharing_user3_button.configure(state="disabled", cursor="left_ptr", text=temp_user.share_user3)
     a_editing = False
     a_sharing_message.configure(text="")
     return
@@ -814,46 +928,136 @@ def account_logout_confirm_button():
     #Logout code here
     return
 
+def setting_back_button():
+    if s_editing == False:
+        goto_main_page_button()
+        return
+    if current_s_page == 1:
+        s_time_message.configure(text="Would you like to save recent changes?")
+    return
+
+
 def setting_wifi_button():
-    s_wifi_frame.lift()
-    s_wifi_button.configure(bg=colours["s_menu_bn_p"])
-    s_time_button.configure(bg=colours["s_menu_bn_u"])
+    global current_s_page
+    if s_editing == False:
+        s_wifi_frame.lift()
+        current_s_page = 0
+        s_wifi_button.configure(bg=colours["s_menu_bn_p"])
+        s_time_button.configure(bg=colours["s_menu_bn_u"])
+        return
+    if current_s_page == 1:
+        s_time_message.configure(text="Would you like to save recent changes?")
     return
 
 def setting_time_button():
-    s_time_frame.lift()
-    s_wifi_button.configure(bg=colours["s_menu_bn_u"])
-    s_time_button.configure(bg=colours["s_menu_bn_p"])
+    global current_s_page
+    if s_editing == False:
+        s_time_morning_button.configure(text=times[0].to_string())
+        s_time_afternoon_button.configure(text=times[1].to_string())
+        s_time_evening_button.configure(text=times[2].to_string())
+        s_time_night_button.configure(text=times[3].to_string())
+        s_time_frame.lift()
+        current_s_page = 1
+        s_wifi_button.configure(bg=colours["s_menu_bn_u"])
+        s_time_button.configure(bg=colours["s_menu_bn_p"])
     return
+
+def setting_time_edit_button():
+    global temp_user, s_editing
+    s_time_edit_button.configure(state="disabled")
+    s_time_save_button.configure(state="normal")
+    s_time_cancel_button.configure(state="normal")
+    s_time_morning_button.configure(state="normal", cursor="xterm")
+    s_time_afternoon_button.configure(state="normal", cursor="xterm")
+    s_time_evening_button.configure(state="normal", cursor="xterm")
+    s_time_night_button.configure(state="normal", cursor="xterm")
+    temp_times[0] = s_time_morning_button.cget("text")
+    temp_times[1] = s_time_afternoon_button.cget("text")
+    temp_times[2] = s_time_evening_button.cget("text")
+    temp_times[3] = s_time_night_button.cget("text")
+    s_editing = True
+    return
+
+def setting_time_save_button():
+    global s_editing, times
+    s_time_edit_button.configure(state="normal")
+    s_time_save_button.configure(state="disabled")
+    s_time_cancel_button.configure(state="disabled")
+    s_time_morning_button.configure(state="disabled", cursor="left_ptr")
+    s_time_afternoon_button.configure(state="disabled", cursor="left_ptr")
+    s_time_evening_button.configure(state="disabled", cursor="left_ptr")
+    s_time_night_button.configure(state="disabled", cursor="left_ptr")
+    times[0].from_string(s_time_morning_button.cget("text"))
+    times[1].from_string(s_time_afternoon_button.cget("text"))
+    times[2].from_string(s_time_evening_button.cget("text"))
+    times[3].from_string(s_time_night_button.cget("text"))
+    save_offline_data()
+    s_editing = False
+    s_time_message.configure(text="")
+    #Update database
+    return
+
+def setting_time_cancel_button():
+    global s_editing
+    s_time_edit_button.configure(state="normal")
+    s_time_save_button.configure(state="disabled")
+    s_time_cancel_button.configure(state="disabled")
+    s_time_morning_button.configure(state="disabled", cursor="left_ptr", text=temp_times[0])
+    s_time_afternoon_button.configure(state="disabled", cursor="left_ptr", text=temp_times[1])
+    s_time_evening_button.configure(state="disabled", cursor="left_ptr", text=temp_times[2])
+    s_time_night_button.configure(state="disabled", cursor="left_ptr", text=temp_times[3])
+    s_editing = False
+    s_time_message.configure(text="")
+    return
+
+
 
 
 #Pastel colours used: Blue "#98F3F9"; Green "#98F9CF"; Yellow "#F7EF99"; Orange "#F4D297"; Red "#F7B299"; Purple "#D9B1EF"
 #Lighter colours used: Blue "#98F3F9"; Green "#B7F4DA"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
 #Darker colours used: Blue "#98F3F9"; Green "#60F2B0"; Yellow "#F2E14B"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
 
+numpad_mode = 0
 numpad_operator = 0
 
 shift = False
 capslock = False
-app_mode = 1
+app_mode = 1 #0: Initial set up; 1: Offline mode; 2: Online mode
 
-#Initial set up = 0
-#Offline mode = 1
-#Online mode = 2
+
 
 current_entry_button = None
 current_page = None
 
 temp_user = user("","","","","","","")
 temp_pill = pill("",0,0,0,[False, False, False, False, False, False, False],[False, False, False, False], 0)
+temp_times = ["","","",""]
 
 add_pill = pill("Add Medicine", -1, 0, 1, [False, False, False, False, False, False, False],[False, False, False, False], 1)
-pill_1 = pill("Aspirin", 1, 2, 100, [True, True, True, True, True, True, True],[True, False, False, True], 1) #For testing only
-pill_2 = pill("Omeprazole", 2, 4, 100, [False, True, True, True, True, True, False],[True, True, True, False], 2) #For testing only
 
-pills = [pill_1, pill_2, add_pill] #For testing only
+pills = []
+times = []
+
+
+current_time = time.localtime(time.time())
+
+at_main = False
+
+current_pill = 0
+
+current_pe_page = 0 #0: Pill; 1: Calendar; 2: Delete
+pe_editing = False
+
+current_a_page = 0 #0: General; 1: Sharing; 2: Password; 3: Logout
+a_editing = False
+
+current_s_page = 0
+s_editing = False
 
 colours = {
+    "start_bg": "#98F3F9",
+    "setup_bg": "#98F3F9",
+    "setup_ln": "#FFFFFF",
     "main_dispense_bg": "#98F3F9",
     "main_status_bg": "#F2F2F2",
     "main_pill_bg": "#98F9CF",
@@ -911,14 +1115,6 @@ colours = {
     "n_bn_p": "#F2E14B",
 }
 
-current_pill = 0
-
-current_pe_page = 0 #0: Pill; 1: Calendar; 2: Delete
-pe_editing = False
-
-current_a_page = 0 #0: General; 1: Sharing; 2: Password; 3: Logout
-a_editing = False
-
 window = tk.Tk()
 window.title("PillBot App")
 window.geometry("800x480")
@@ -965,16 +1161,18 @@ for image_counter in range(6):
 
 start_page = Page(window)
 start_page.place(x=0, y=0, relwidth=1, relheight=1)
-start_button = tk.Button(start_page, image=start_image, command = start_button, relief="sunken", borderwidth=0, bg="#98F3F9", activebackground="#98F3F9")
+start_button = tk.Button(start_page, image=start_image, command = start_button, relief="sunken", borderwidth=0, bg=colours["start_bg"], activebackground=colours["start_bg"])
 start_button.place(x=0, y=0, relwidth=1, relheight=1)
 
-setup_page = Page(window, bg=colours["pe_content_entry"])
+setup_page = Page(window, bg=colours["setup_bg"])
 setup_page.place(x=0, y=0, relwidth=1, relheight=1)
-setup_offline_button = tk.Button(setup_page, text="Offline Mode", relief="sunken", borderwidth=0, bg="#98F3F9", activebackground="#98F3F9", font=("Trebuchet MS",24))
+setup_offline_button = tk.Button(setup_page, text="Offline Mode", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), command=setup_offline_button_command)
 setup_offline_button.place(relwidth=0.5, relheight=1, relx=0, rely=0, anchor="nw")
-setup_online_button = tk.Button(setup_page, text="Online Mode", relief="sunken", borderwidth=0, bg=colours["pe_content_entry"], activebackground=colours["pe_content_entry"], font=("Trebuchet MS",24))
+setup_online_button = tk.Button(setup_page, text="Online Mode", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), command=setup_online_button_command)
 setup_online_button.place(relwidth=0.5, relheight=1, relx=1, rely=0, anchor="ne")
 
+setup_line = tk.Frame(setup_page, bg=colours["setup_ln"])
+setup_line.place(width=2, relheight=1, relx=0.5, rely=0, anchor="n")
 
 
 main_page = Page(window, bg=colours["main_dispense_bg"])
@@ -1018,6 +1216,13 @@ m_settings_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.81, anchor="
 m_setting_button = tk.Button(m_settings_frame, bg=colours["main_settings_bg"], image=setting_image, text=" Settings", compound="left", activebackground=colours["main_settings_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_setting_page_button)
 m_setting_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
+#Status Frame
+
+m_time_label = tk.Label(m_status_frame, bg=colours["main_status_bg"], text="", font=("Trebuchet MS",12), anchor="w")
+m_time_label.place(relx=0, rely=0, relwidth=0.3, relheight=1)
+m_date_label = tk.Label(m_status_frame, bg=colours["main_status_bg"], text="", font=("Trebuchet MS",12), anchor="c")
+m_date_label.place(relx=0.5, rely=0, relwidth=0.4, relheight=1, anchor="n")
+
 main_lines = []
 for line_count in range(7):
     main_lines.append(tk.Frame(main_page, bg=colours["main_ln"]))
@@ -1028,6 +1233,10 @@ main_lines[3].place(relwidth=0.4, height=2, relx=1, rely=0.62, anchor="e")
 main_lines[4].place(relwidth=0.4, height=2, relx=1, rely=0.81, anchor="e")
 main_lines[5].place(relwidth=0.6, height=2, relx=0, rely=0.5, anchor="w")
 main_lines[6].place(width=2, relheight=1, relx=0.6, rely=0, anchor="n")
+
+
+
+
 
 #Pill Page
 
@@ -1108,7 +1317,7 @@ pd_quantity_label = tk.Label(pd_quantity_frame, bg=colours["pd_bg"], font=("Treb
 pd_quantity_label.place(relx=0, rely=0, relwidth=0.5, relheight=1)
 
 
-pd_qty_button = tk.Button(pd_quantity_frame, text="100", font=("Trebuchet MS", 18), bg=colours["pd_bn_u"], relief="solid", borderwidth=2, activebackground=colours["pd_bn_p"], command=lambda:open_numpad_button(pill_detail_page, "Pill Quantity", pd_qty_button, True))
+pd_qty_button = tk.Button(pd_quantity_frame, text="100", font=("Trebuchet MS", 18), bg=colours["pd_bn_u"], relief="solid", borderwidth=2, activebackground=colours["pd_bn_p"], command=lambda:open_numpad_button(pill_detail_page, "Pill Quantity", pd_qty_button, 1))
 pd_qty_button.place(relx=0.5, rely=0, relwidth=0.2, relheight=1)
 
 pd_empty_label = tk.Label(pd_data_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 18), text = "Empty on 5 Jan 20", anchor="w")
@@ -1292,6 +1501,9 @@ q_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
 
 
 
+
+
+
 account_page = Page(window, bg=colours["a_content_bg"])
 account_page.place(x=0, y=0, relwidth=1, relheight=1)
 
@@ -1468,7 +1680,7 @@ settings_page.place(x=0, y=0, relwidth=1, relheight=1)
 s_menu_frame = tk.Frame(settings_page, bg=colours["s_menu_bn_u"])
 s_menu_frame.place(relx = 0, rely = 0, relwidth = 0.12, relheight = 1)
 
-s_back_button = tk.Button(s_menu_frame, image=back_icon_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=goto_main_page_button, anchor = "c")
+s_back_button = tk.Button(s_menu_frame, image=back_icon_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_back_button, anchor = "c")
 s_back_button.place(relx=0.5, rely=0.0, relheight=0.2, relwidth=1, anchor="n")
 
 s_wifi_button = tk.Button(s_menu_frame, image=wifi_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_wifi_button, anchor = "c")
@@ -1497,22 +1709,46 @@ s_time_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
 s_time_title = tk.Label(s_time_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",24,"underline"), text="Time Settings", padx=10, pady=10, anchor="w")
 s_time_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
 
-s_time_title = tk.Label(a_password_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",24,"underline"), text="Change Password", padx=10, pady=10, anchor="w")
-s_time_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
-
-s_time_morning_frame = tk.Frame(s_time_frame, bg=colours["a_content_bg"])
-s_time_morning_label = tk.Label(s_time_morning_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="Morning: ", padx=10, pady=10, anchor="w")
-s_time_morning_button = tk.Button(s_time_morning_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_password_current_label, a_password_current_button))
+s_time_morning_frame = tk.Frame(s_time_frame, bg=colours["s_content_bg"])
+s_time_morning_label = tk.Label(s_time_morning_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Morning: ", padx=10, pady=10, anchor="w")
+s_time_morning_button = tk.Button(s_time_morning_frame, bg=colours["s_content_entry"], activebackground=colours["s_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, state="disabled", font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_numpad_button(settings_page, "Morning Time", s_time_morning_button, 2))
 s_time_morning_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
 s_time_morning_label.place(relx = 0, rely = 0, relwidth = 0.5, relheight = 1)
 s_time_morning_button.place(relx = 0.5, rely = 0, relwidth = 0.5, relheight = 1)
 
-s_time_afternoon_frame = tk.Frame(s_time_frame, bg=colours["a_content_bg"])
-s_time_afternoon_label = tk.Label(s_time_afternoon_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="Afternoon: ", padx=10, pady=10, anchor="w")
-s_time_afternoon_button = tk.Button(s_time_afternoon_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_password_new_label, a_password_new_button))
+s_time_afternoon_frame = tk.Frame(s_time_frame, bg=colours["s_content_bg"])
+s_time_afternoon_label = tk.Label(s_time_afternoon_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Afternoon: ", padx=10, pady=10, anchor="w")
+s_time_afternoon_button = tk.Button(s_time_afternoon_frame, bg=colours["s_content_entry"], activebackground=colours["s_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, state="disabled", font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_numpad_button(settings_page, "Afternoon Time", s_time_afternoon_button, 2))
 s_time_afternoon_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.08)
 s_time_afternoon_label.place(relx = 0, rely = 0, relwidth = 0.5, relheight = 1)
 s_time_afternoon_button.place(relx = 0.5, rely = 0, relwidth = 0.5, relheight = 1)
+
+s_time_evening_frame = tk.Frame(s_time_frame, bg=colours["s_content_bg"])
+s_time_evening_label = tk.Label(s_time_evening_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Evening: ", padx=10, pady=10, anchor="w")
+s_time_evening_button = tk.Button(s_time_evening_frame, bg=colours["s_content_entry"], activebackground=colours["s_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, state="disabled", font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_numpad_button(settings_page, "Evening Time", s_time_evening_button, 2))
+s_time_evening_frame.place(relx = 0.05, rely = 0.44, relwidth = 0.9, relheight = 0.08)
+s_time_evening_label.place(relx = 0, rely = 0, relwidth = 0.5, relheight = 1)
+s_time_evening_button.place(relx = 0.5, rely = 0, relwidth = 0.5, relheight = 1)
+
+s_time_night_frame = tk.Frame(s_time_frame, bg=colours["s_content_bg"])
+s_time_night_label = tk.Label(s_time_night_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Night: ", padx=10, pady=10, anchor="w")
+s_time_night_button = tk.Button(s_time_night_frame, bg=colours["s_content_entry"], activebackground=colours["s_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, state="disabled", font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666", command = lambda: open_numpad_button(settings_page, "Night Time", s_time_night_button, 2))
+s_time_night_frame.place(relx = 0.05, rely = 0.56, relwidth = 0.9, relheight = 0.08)
+s_time_night_label.place(relx = 0, rely = 0, relwidth = 0.5, relheight = 1)
+s_time_night_button.place(relx = 0.5, rely = 0, relwidth = 0.5, relheight = 1)
+
+s_time_message = tk.Label(s_time_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), fg="red", padx=10, pady=10, anchor="w")
+s_time_message.place(relx = 0.05, rely = 0.68, relwidth = 0.9, relheight = 0.08)
+
+s_time_button_frame = tk.Frame(s_time_frame, bg=colours["s_content_bg"])
+s_time_edit_button = tk.Button(s_time_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Edit", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=setting_time_edit_button)
+s_time_save_button = tk.Button(s_time_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Save", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", state="disabled", disabledforeground="#666666", command=setting_time_save_button)
+s_time_cancel_button = tk.Button(s_time_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Cancel", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", state="disabled", disabledforeground="#666666", command=setting_time_cancel_button)
+s_time_button_frame.place(relx = 0.05, rely = 0.84, relwidth = 0.9, relheight = 0.08)
+s_time_edit_button.place(relx = 0.1, rely = 0, relwidth = 0.2, relheight = 1)
+s_time_save_button.place(relx = 0.4, rely = 0, relwidth = 0.2, relheight = 1)
+s_time_cancel_button.place(relx = 0.7, rely = 0, relwidth = 0.2, relheight = 1)
+
 
 numpad_page = Page(window, bg=colours["n_bg"])
 numpad_page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -1524,9 +1760,11 @@ n_numpad.place(relx=0.5, y=0, relwidth=0.5, relheight=1)
 
 n_title = tk.Label(n_content, bg=colours["n_content"], font=("Trebuchet MS",24), anchor = "w")
 n_entry = tk.Entry(n_content, bg=colours["n_entry"], borderwidth=2, relief="sunken", font=("Trebuchet MS",18))
+n_message = tk.Label(n_content, bg=colours["n_content"], font=("Trebuchet MS",18), fg="red", anchor = "w")
 
 n_title.place(relx=0.05, rely=0.08, relwidth=0.9, relheight=0.08)
-n_entry.place(relx=0.05, rely=0.2, relwidth=0.9, relheight=0.08)
+n_entry.place(relx=0.05, rely=0.20, relwidth=0.9, relheight=0.08)
+n_message.place(relx=0.05, rely=0.32, relwidth=0.9, relheight=0.08)
 
 n_row_1 = tk.Frame(n_numpad, bg=colours["n_bg"])
 n_row_2 = tk.Frame(n_numpad, bg=colours["n_bg"])
@@ -1538,34 +1776,34 @@ n_row_3.place(relx=0.05, rely=0.5, relwidth=0.9, relheight=0.2)
 n_row_4.place(relx=0.05, rely=0.7, relwidth=0.9, relheight=0.2)
 
 #Row 1
-n_button_1 = tk.Button(n_row_1, text = "1", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(1))
-n_button_2 = tk.Button(n_row_1, text = "2", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(2))
-n_button_3 = tk.Button(n_row_1, text = "3", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(3))
+n_button_7 = tk.Button(n_row_1, text = "7", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(7))
+n_button_8 = tk.Button(n_row_1, text = "8", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(8))
+n_button_9 = tk.Button(n_row_1, text = "9", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(9))
 n_button_backspace = tk.Button(n_row_1, text = "⌫", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = numpad_backspace_button)
-n_button_1.place(relx=0, rely=0, relwidth=0.25, relheight=1)
-n_button_2.place(relx=0.25, rely=0, relwidth=0.25, relheight=1)
-n_button_3.place(relx=0.5, rely=0, relwidth=0.25, relheight=1)
+n_button_7.place(relx=0, rely=0, relwidth=0.25, relheight=1)
+n_button_8.place(relx=0.25, rely=0, relwidth=0.25, relheight=1)
+n_button_9.place(relx=0.5, rely=0, relwidth=0.25, relheight=1)
 n_button_backspace.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
 
 #Row 2
 n_button_4 = tk.Button(n_row_2, text = "4", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(4))
 n_button_5 = tk.Button(n_row_2, text = "5", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(5))
 n_button_6 = tk.Button(n_row_2, text = "6", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(6))
-n_button_plus = tk.Button(n_row_2, text = "−", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_math_button(1))
+n_button_special_1 = tk.Button(n_row_2, text = "−", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_math_button(1))
 n_button_4.place(relx=0, rely=0, relwidth=0.25, relheight=1)
 n_button_5.place(relx=0.25, rely=0, relwidth=0.25, relheight=1)
 n_button_6.place(relx=0.5, rely=0, relwidth=0.25, relheight=1)
-n_button_plus.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
+n_button_special_1.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
 
 #Row 3
-n_button_7 = tk.Button(n_row_3, text = "7", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(7))
-n_button_8 = tk.Button(n_row_3, text = "8", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(8))
-n_button_9 = tk.Button(n_row_3, text = "9", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(9))
-n_button_minus = tk.Button(n_row_3, text = "−", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_math_button(-1))
-n_button_7.place(relx=0, rely=0, relwidth=0.25, relheight=1)
-n_button_8.place(relx=0.25, rely=0, relwidth=0.25, relheight=1)
-n_button_9.place(relx=0.5, rely=0, relwidth=0.25, relheight=1)
-n_button_minus.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
+n_button_1 = tk.Button(n_row_3, text = "1", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(1))
+n_button_2 = tk.Button(n_row_3, text = "2", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(2))
+n_button_3 = tk.Button(n_row_3, text = "3", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(3))
+n_button_special_2 = tk.Button(n_row_3, text = "−", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_math_button(-1))
+n_button_1.place(relx=0, rely=0, relwidth=0.25, relheight=1)
+n_button_2.place(relx=0.25, rely=0, relwidth=0.25, relheight=1)
+n_button_3.place(relx=0.5, rely=0, relwidth=0.25, relheight=1)
+n_button_special_2.place(relx=0.75, rely=0, relwidth=0.25, relheight=1)
 
 #Row 4
 n_button_0 = tk.Button(n_row_4, text = "0", padx = 20, pady = 20, bg=colours["n_bn_u"], activebackground=colours["n_bn_p"], borderwidth=1, relief="solid", font=("Trebuchet MS",18), command = lambda: numpad_type_button(0))
