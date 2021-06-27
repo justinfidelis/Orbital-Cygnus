@@ -25,6 +25,21 @@ class pill:
         if self.icon_shape == -1:
             return 0
         return 6 * self.icon_shape + self.icon_colour + 1
+    def get_exhaust_days(self):
+        cons_d = sum(self.dosage_times) * self.dosage_amount
+        cons_w = sum(self.dosage_days) * cons_d
+        weeks = math.floor(self.qty / cons_w)
+        exhaust_days = 7 * weeks
+        remainder = self.qty % cons_w
+        for i in range(7):
+            remainder -= int(self.dosage_days[(time.localtime(time.time()).tm_wday + i) % 7]) * cons_d
+            if remainder > 0:
+                exhaust_days += 1
+        return exhaust_days
+    def get_exhaust_date(self):
+        current_time = time.time()
+        exhaust_date = self.get_exhaust_days() * 24 * 60 * 60 + current_time
+        return time.localtime(exhaust_date)
 
 class user:
     def __init__(self, email, username, first_name, last_name, share_user1, share_user2, share_user3):
@@ -36,6 +51,71 @@ class user:
         self.share_user2 = share_user2
         self.share_user3 = share_user3
         return
+
+class dosage_table:
+    def __init__(self, pill_list):
+        self.count = len(pill_list) - 1
+        self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)]
+        for index in range(self.count):
+            temp_day = [0] * 4
+            for i in range(4):
+                if pill_list[index].dosage_times[i]:
+                    temp_day[i] = pill_list[index].dosage_amount
+            for i in range(7):
+                if pill_list[index].dosage_days[i]:
+                    self.table[index][i] = temp_day
+                else:
+                    self.table[index][i] = [0,0,0,0]
+        return
+    def update_single(self, pill, index):
+        if index >= self.count:
+            return False
+        temp_day = [0] * 4
+        for i in range(4):
+            if pill.dosage_times[i]:
+                temp_day[i] = pill.dosage_amount
+        for i in range(7):
+            if pill.dosage_days[i]:
+                self.table[index][i] = temp_day
+            else:
+                self.table[index][i] = [0,0,0,0]
+        return True
+    def update_all(self, pill_list):
+        self.count = len(pill_list) - 1
+        self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)]
+        for index in range(len(pill_list) - 1):
+            temp_day[i] = [0] * 4
+            for i in range(4):
+                if pill_list[index].dosage_times[i]:
+                    temp_day = pill_list[index].dosage_amount
+            for i in range(7):
+                if pill_list[index].dosage_days[i]:
+                    self.table[index][i] = temp_day
+                else:
+                    self.table[index][i] = [0,0,0,0]
+        return
+    def add_pill(self, pill):
+        temp_day = [0] * 4
+        temp_week = []
+        for i in range(4):
+            if pill.dosage_times[i]:
+                temp_day[i] = pill.dosage_amount
+        for i in range(7):
+            if pill.dosage_days[i]:
+                temp_week.append(temp_day)
+            else:
+                self.table[index][i] = [0,0,0,0]
+        self.table.append(temp_week)
+        self.count += 1
+    def delete_pill(self, index):
+        self.table.pop(index)
+        self.count -= 1
+        return
+    def get_dosage(index, day, time):
+        dosage_list = []
+        for i in range(self.count):
+            dosage_list.append(self.table[i][day][time])
+        return dosage_list
 
 class day_time:
     def __init__(self, hour, minute):
@@ -55,31 +135,35 @@ class day_time:
         return True
 
 class storage:
-    def __init__(self, pills, times, mode):
+    def __init__(self, pills, time_settings, mode):
         self.pills = pills
-        self.times = times
+        self.time_setting = time_settings
         self.mode = mode
         return
 
 def save_offline_data():
-    temp_storage = storage(pills, times, app_mode)
+    temp_storage = storage(pills, time_settings, app_mode)
     with open("user_data.p", "wb") as file:
         pickle.dump(temp_storage, file)
     return
 
 def load_offline_data():
-    global pills, times, app_mode
+    global pills, time_settings, app_mode, dosage_info
     try:
         with open("user_data.p", "rb") as file:
             temp_storage = pickle.load(open("user_data.p", "rb"))
             pills = temp_storage.pills
-            times = temp_storage.times
+            time_settings = temp_storage.time_setting
             app_mode = temp_storage.mode
+            dosage_info = dosage_table(pills)
+            update_time_thresholds()
     except FileNotFoundError:
         pill_1 = pill("Aspirin", 1, 2, 100, [True, True, True, True, True, True, True],[True, False, False, True], 1) #For testing only
         pill_2 = pill("Omeprazole", 2, 4, 100, [False, True, True, True, True, True, False],[True, True, True, False], 2) #For testing only
         pills = [pill_1, pill_2, add_pill]
-        times = [day_time(8,0), day_time(12,30), day_time(17,0), day_time(21,0)]
+        dosage_info = dosage_table(pills)
+        time_settings = [day_time(8,0), day_time(12,30), day_time(17,0), day_time(21,0)]
+        update_time_thresholds()
         app_mode = 0
     return
 
@@ -115,16 +199,13 @@ def main_time_update():
         m_time_label.after(1000, main_time_update)
     return
 
-#Dispense pills into pill container
-def dispense_button():
+#Go to dispense page
+def goto_dispense_page_button():
     global at_main
+    at_main = False
+    dispense_page_update()
+    dispense_page.lift()
     #hardware dispense function
-    return
-
-#Dispense pills into tray
-def refill_button():
-    global at_main
-    #hardware refill function
     return
 
 #Go to pill page
@@ -138,6 +219,7 @@ def goto_pill_page_button():
 #Go to quantity page
 def goto_quantity_page_button():
     global at_main
+    quantity_page_update()
     quantity_page.lift()
     at_main = False
     return
@@ -165,7 +247,6 @@ def goto_main_page_button():
     main_time_update()
     main_page.lift()
     return
-
 
 def open_numpad_button(page, title, button, mode): #mode == 0: normal; 1: math; 2: time
     global current_entry_button, current_page, numpad_operator, numpad_mode
@@ -274,6 +355,7 @@ def numpad_enter_button():
         if current_entry_button == pd_qty_button:
             pills[current_pill].qty = int(n_entry.get())
             save_offline_data()
+            pill_detail_page_update(current_pill)
             #update charts
             #update database
         #<\especially bad code>
@@ -406,6 +488,51 @@ def keyboard_cancel_button():
     current_page.lift()
     return
 
+def update_time_window():
+    global current_window, current_day
+    temp_time = time.localtime(time.time())
+    current_day = (temp_time.tm_wday + 1) % 7
+    curr_min = temp_time.tm_hour * 60 + temp_time.tm_min
+    for i in range(4):
+        if curr_min >= time_thresholds[i][0] and curr_min <= time_thresholds[i][1] and history_info_wk[current_day][i] == 0:
+            current_window = i
+            return
+    current_window = -1
+    return
+
+#Dispense Page: Update pill icons, dosage amounts based on current time
+def dispense_page_update():
+    update_time_window()
+    day_text = time.strftime("%A")
+    times_text_list = ["Morning", "Afternoon", "Evening", "Night"]
+    if current_window == -1:
+        d_name_label.configure(text=f"Dispense")
+    else:
+        d_name_label.configure(text=f"Dispense for {day_text} {times_text_list[current_window]}")
+    pills_no = len(pills) - 1
+    for count in range(6):
+        d_amount_frames[count].place_forget()
+        if count < pills_no:
+            d_amount_frames[count].place(relx=(1.04 - pills_no * 0.16) / 2 + 0.16 * count, rely=0.2, relwidth=0.12, relheight = 0.6, anchor="nw")
+            d_icons[count].configure(image=pill_images_small[pills[count].get_icon_id()])
+            if current_window == -1:
+                d_amount_button[count].configure(text="0")
+            else:
+                d_amount_button[count].configure(text=dosage_info.table[count][current_day][current_window])
+        else:
+            d_amount_frames[count].place_forget()
+    return
+
+def dispense_page_increase_button(pill_index):
+    current_amount = int(d_amount_button[pill_index].cget("text"))
+    d_amount_button[pill_index].configure(text=min(current_amount + 1,5))
+    return
+
+def dispense_page_decrease_button(pill_index):
+    current_amount = int(d_amount_button[pill_index].cget("text"))
+    d_amount_button[pill_index].configure(text=max(current_amount - 1,0))
+    return
+
 #Pill Page: Switches to left pill
 def pill_left_nav_button():
     global current_pill
@@ -438,6 +565,10 @@ def pill_detail_page_update(pill_index):
     pd_pill_name_button.configure(text=pills[pill_index].name)
     pd_pill_button.configure(image=pill_images_small[pills[pill_index].get_icon_id()])
     pd_qty_button.configure(text=pills[pill_index].qty)
+    exhaust_date = pills[pill_index].get_exhaust_date()
+    empty_date = time.strftime("%d %b %Y", exhaust_date)
+    pd_empty_label.configure(text=f"Empty on: {empty_date}")
+    pd_chart_bar.place_configure(relheight=0.8 * min(1.05, pills[pill_index].get_exhaust_days() / 120))
     return
 
 #Go to pill detail page
@@ -446,7 +577,8 @@ def goto_pill_detail_page_button(pill_index):
         pill_detail_page_update(pill_index)
         pill_detail_page.lift()
     else:
-        pills.insert(len(pills)-1,pill("New Pill",0,0,0,[True,True,True,True,True,True,True],[False,False,False,False],1))
+        pills.insert(len(pills)-1,pill("New Pill",0,0,0,[True,True,True,True,True,True,True],[True,False,False,False],1))
+        dosage_info.add_pill(pills[current_pill])
         goto_pill_edit_page_button()
         pill_edit_pill_edit_button()
     return
@@ -619,7 +751,7 @@ def pill_edit_schedule_amount_decrease():
 
 def pill_edit_schedule_amount_increase():
     global temp_pill
-    if temp_pill.dosage_amount < 10:
+    if temp_pill.dosage_amount < 5:
         temp_pill.dosage_amount += 1
     pe_schedule_amount_button.configure(text=temp_pill.dosage_amount)
     return
@@ -640,19 +772,29 @@ def pill_edit_schedule_edit_button():
 
 def pill_edit_schedule_save_button():
     global pe_editing
-    pe_schedule_edit_button.configure(state="normal")
-    pe_schedule_save_button.configure(state="disabled")
-    pe_schedule_cancel_button.configure(state="disabled")
-    for count in range(7):
-        pills[current_pill].dosage_days[count] = temp_pill.dosage_days[count]
-    for count in range(4):
-        pills[current_pill].dosage_times[count] = temp_pill.dosage_times[count]
-    pills[current_pill].dosage_amount = temp_pill.dosage_amount
-    save_offline_data()
-    pill_edit_schedule_buttons_disable()
-    pe_schedule_message_label.configure(text="")
-    pe_editing = False
-    #Update database
+    if sum(temp_pill.dosage_days) == 0:
+        if sum(temp_pill.dosage_times) == 0:
+            pe_schedule_message_label.configure(text="Please select at least 1 time and 1 day.")
+        else:
+            pe_schedule_message_label.configure(text="Please select at least 1 day.")
+    else:
+        if sum(temp_pill.dosage_times) == 0:
+            pe_schedule_message_label.configure(text="Please select at least 1 time.")
+        else:
+            pe_schedule_edit_button.configure(state="normal")
+            pe_schedule_save_button.configure(state="disabled")
+            pe_schedule_cancel_button.configure(state="disabled")
+            for count in range(7):
+                pills[current_pill].dosage_days[count] = temp_pill.dosage_days[count]
+            for count in range(4):
+                pills[current_pill].dosage_times[count] = temp_pill.dosage_times[count]
+            pills[current_pill].dosage_amount = temp_pill.dosage_amount
+            dosage_info.update_single(pills[current_pill],current_pill)
+            save_offline_data()
+            pill_edit_schedule_buttons_disable()
+            pe_schedule_message_label.configure(text="")
+            pe_editing = False
+            #Update database
     return
 
 def pill_edit_schedule_cancel_button():
@@ -679,6 +821,7 @@ def pill_edit_delete_delete_button():
 def pill_edit_delete_confirm_button():
     text = pills[current_pill].name
     pills.pop(current_pill)
+    dosage_info.delete_pill(current_pill)
     save_offline_data()
     goto_pill_page_button()
     p_message_label.configure(text=f"{text} deleted sucessfully.")
@@ -714,6 +857,7 @@ def pill_edit_schedule_button():
         pe_pill_button.configure(bg=colours["pe_menu_bn_u"])
         pe_schedule_button.configure(bg=colours["pe_menu_bn_p"])
         pe_delete_button.configure(bg=colours["pe_menu_bn_u"])
+        pe_schedule_amount_button.configure(text=pills[current_pill].dosage_amount)
         for count in range(7):
             pill_edit_schedule_day_buttons_update(count, pills[current_pill].dosage_days)
         for count in range(4):
@@ -749,6 +893,18 @@ def pill_edit_delete_button():
 
 def pill_dispenser_open(index):
     #TODO hardware
+    return
+
+def quantity_page_update():
+    for count in range(6):
+        q_chart_bars[count].place_forget()
+        if count < len(pills) - 1:
+            q_chart_bars[count].place(relx=0.23 + 0.13 * count, rely=0.7, relheight = 0.8 * min(1.05, pills[count].get_exhaust_days() / 120), relwidth=0.08, anchor="sw")
+            q_chart_icons[count].configure(image=pill_images_tiny[pills[count].get_icon_id()])
+            q_chart_qty_labels[count].configure(text=pills[count].qty)
+        else:
+            q_chart_icons[count].configure(image="")
+            q_chart_qty_labels[count].configure(text="")
     return
 
 def account_back_button():
@@ -952,14 +1108,21 @@ def setting_wifi_button():
 def setting_time_button():
     global current_s_page
     if s_editing == False:
-        s_time_morning_button.configure(text=times[0].to_string())
-        s_time_afternoon_button.configure(text=times[1].to_string())
-        s_time_evening_button.configure(text=times[2].to_string())
-        s_time_night_button.configure(text=times[3].to_string())
+        s_time_morning_button.configure(text=time_settings[0].to_string())
+        s_time_afternoon_button.configure(text=time_settings[1].to_string())
+        s_time_evening_button.configure(text=time_settings[2].to_string())
+        s_time_night_button.configure(text=time_settings[3].to_string())
         s_time_frame.lift()
         current_s_page = 1
         s_wifi_button.configure(bg=colours["s_menu_bn_u"])
         s_time_button.configure(bg=colours["s_menu_bn_p"])
+    return
+
+def update_time_thresholds():
+    global time_thresholds
+    for i in range(4):
+        time_thresholds[i][0] = max(time_settings[i].hour * 60 + time_settings[i].minute - 30, 0)
+        time_thresholds[i][1] = min(time_settings[i].hour * 60 + time_settings[i].minute + 30, 1439)
     return
 
 def setting_time_edit_button():
@@ -979,7 +1142,7 @@ def setting_time_edit_button():
     return
 
 def setting_time_save_button():
-    global s_editing, times
+    global s_editing, time_settings
     s_time_edit_button.configure(state="normal")
     s_time_save_button.configure(state="disabled")
     s_time_cancel_button.configure(state="disabled")
@@ -987,10 +1150,11 @@ def setting_time_save_button():
     s_time_afternoon_button.configure(state="disabled", cursor="left_ptr")
     s_time_evening_button.configure(state="disabled", cursor="left_ptr")
     s_time_night_button.configure(state="disabled", cursor="left_ptr")
-    times[0].from_string(s_time_morning_button.cget("text"))
-    times[1].from_string(s_time_afternoon_button.cget("text"))
-    times[2].from_string(s_time_evening_button.cget("text"))
-    times[3].from_string(s_time_night_button.cget("text"))
+    time_settings[0].from_string(s_time_morning_button.cget("text"))
+    time_settings[1].from_string(s_time_afternoon_button.cget("text"))
+    time_settings[2].from_string(s_time_evening_button.cget("text"))
+    time_settings[3].from_string(s_time_night_button.cget("text"))
+    update_time_thresholds()
     save_offline_data()
     s_editing = False
     s_time_message.configure(text="")
@@ -1014,8 +1178,8 @@ def setting_time_cancel_button():
 
 
 #Pastel colours used: Blue "#98F3F9"; Green "#98F9CF"; Yellow "#F7EF99"; Orange "#F4D297"; Red "#F7B299"; Purple "#D9B1EF"
-#Lighter colours used: Blue "#98F3F9"; Green "#B7F4DA"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
-#Darker colours used: Blue "#98F3F9"; Green "#60F2B0"; Yellow "#F2E14B"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
+#Lighter colours used: Blue "#E5FFFF"; Green "#B7F4DA"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
+#Darker colours used: Blue "#74F0F7"; Green "#60F2B0"; Yellow "#F2E14B"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
 
 numpad_mode = 0
 numpad_operator = 0
@@ -1036,10 +1200,18 @@ temp_times = ["","","",""]
 add_pill = pill("Add Medicine", -1, 0, 1, [False, False, False, False, False, False, False],[False, False, False, False], 1)
 
 pills = []
-times = []
+time_settings = []
+time_thresholds = [[0] * 2 for time_count in range(4)]
+current_day = 0
+current_window = -1
 
+dosage_info = []
 
 current_time = time.localtime(time.time())
+
+#0: default, -1: missed, 1: taken, 2:no dose
+history_info_full = []
+history_info_wk = [[0] * 4 for hist_count in range(7)]
 
 at_main = False
 
@@ -1066,6 +1238,11 @@ colours = {
     "main_account_bg": "#F7B299",
     "main_settings_bg": "#D9B1EF",
     "main_ln": "#FFFFFF",
+    "d_bg": "#98F3F9",
+    "d_menu_bn_u": "#98F3F9",
+    "d_menu_bn_p": "#74F0F7",
+    "d_entry": "#F2E14B",
+    "d_frame": "#F7EF99",
     "pn_bg": "#98F3F9",
     "pn_menu_bn_u": "#98F3F9",
     "pn_menu_bn_p": "#74F0F7",
@@ -1075,6 +1252,7 @@ colours = {
     "pd_bn_u": "#F7EF99",
     "pd_bn_p": "#F2E14B",
     "pd_ln": "#FFFFFF",
+    "pd_bc": "#F7EF99",
     "pe_menu_bn_u": "#98F3F9",
     "pe_menu_bn_p": "#74F0F7",
     "pe_menu_ln": "#FFFFFF",
@@ -1085,6 +1263,8 @@ colours = {
     "q_bg": "#98F3F9",
     "q_menu_bn_u": "#98F3F9",
     "q_menu_bn_p": "#74F0F7",
+    "q_ln": "#FFFFFF",
+    "q_bc": "#F7EF99",
     "pd_bn_u": "#F7EF99",
     "pd_bn_p": "#F2E14B",
     "a_menu_bn_u": "#98F3F9",
@@ -1121,6 +1301,8 @@ window.geometry("800x480")
 window.iconphoto(False, tk.PhotoImage(file="Resources/GUI_icon.png"))
 
 start_image = ImageTk.PhotoImage(Image.open("Resources/start.png"))
+online_image = ImageTk.PhotoImage(Image.open("Resources/online_icon.png"))
+offline_image = ImageTk.PhotoImage(Image.open("Resources/offline_icon.png"))
 dispense_image = ImageTk.PhotoImage(Image.open("Resources/dispense_icon.png"))
 refill_image = ImageTk.PhotoImage(Image.open("Resources/refill_icon.png"))
 pill_image = ImageTk.PhotoImage(Image.open("Resources/pill_icon.png"))
@@ -1166,10 +1348,18 @@ start_button.place(x=0, y=0, relwidth=1, relheight=1)
 
 setup_page = Page(window, bg=colours["setup_bg"])
 setup_page.place(x=0, y=0, relwidth=1, relheight=1)
-setup_offline_button = tk.Button(setup_page, text="Offline Mode", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), command=setup_offline_button_command)
-setup_offline_button.place(relwidth=0.5, relheight=1, relx=0, rely=0, anchor="nw")
-setup_online_button = tk.Button(setup_page, text="Online Mode", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), command=setup_online_button_command)
-setup_online_button.place(relwidth=0.5, relheight=1, relx=1, rely=0, anchor="ne")
+setup_offline_frame = tk.Button(setup_page, relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], command=setup_offline_button_command)
+setup_offline_frame.place(relwidth=0.5, relheight=1, relx=0, rely=0, anchor="nw")
+setup_offline_button = tk.Button(setup_page, text="Offline Mode", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), image=offline_image, compound="top", command=setup_offline_button_command)
+setup_offline_button.place(relwidth=0.5, relheight=0.5, relx=0, rely=0.15, anchor="nw")
+setup_offline_desc=tk.Button(setup_page, text=f"All features except smartphone\nsyncing and data sharing", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",16), command=setup_offline_button_command)
+setup_offline_desc.place(relwidth=0.5, relheight=0.2, relx=0, rely=0.65, anchor="nw")
+setup_online_frame = tk.Button(setup_page, relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], command=setup_online_button_command)
+setup_online_frame.place(relwidth=0.5, relheight=1, relx=0.5, rely=0, anchor="nw")
+setup_online_button = tk.Button(setup_page, text="Online Mod", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",24,"underline"), image=online_image, compound="top", command=setup_online_button_command)
+setup_online_button.place(relwidth=0.5, relheight=0.5, relx=0.5, rely=0.15, anchor="nw")
+setup_online_desc=tk.Button(setup_page, text=f"Enables smartphone syncing\nand data sharing", relief="sunken", borderwidth=0, bg=colours["setup_bg"], activebackground=colours["setup_bg"], font=("Trebuchet MS",16), command=setup_online_button_command)
+setup_online_desc.place(relwidth=0.5, relheight=0.2, relx=0.5, rely=0.65, anchor="nw")
 
 setup_line = tk.Frame(setup_page, bg=colours["setup_ln"])
 setup_line.place(width=2, relheight=1, relx=0.5, rely=0, anchor="n")
@@ -1180,12 +1370,12 @@ main_page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
 m_dispense_frame = tk.Frame(main_page, bg=colours["main_dispense_bg"])
 m_dispense_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0, anchor="nw")
-m_dispense_button = tk.Button(m_dispense_frame, bg=colours["main_dispense_bg"], image=dispense_image, text=" Dispense", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=dispense_button)
+m_dispense_button = tk.Button(m_dispense_frame, bg=colours["main_dispense_bg"], image=dispense_image, text=" Dispense", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=goto_dispense_page_button)
 m_dispense_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_refill_frame = tk.Frame(main_page, bg=colours["main_dispense_bg"])
 m_refill_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0.5, anchor="nw")
-m_refill_button = tk.Button(m_refill_frame, bg=colours["main_dispense_bg"], image=refill_image, text=" Refill", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=refill_button)
+m_refill_button = tk.Button(m_refill_frame, bg=colours["main_dispense_bg"], image=refill_image, text=" Refill", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=goto_dispense_page_button)
 m_refill_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_status_frame = tk.Frame(main_page, bg=colours["main_status_bg"])
@@ -1234,9 +1424,56 @@ main_lines[4].place(relwidth=0.4, height=2, relx=1, rely=0.81, anchor="e")
 main_lines[5].place(relwidth=0.6, height=2, relx=0, rely=0.5, anchor="w")
 main_lines[6].place(width=2, relheight=1, relx=0.6, rely=0, anchor="n")
 
+#Dispense Page
+dispense_page = Page(window, bg=colours["d_bg"])
+dispense_page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
+d_back_button = tk.Button(dispense_page, image=back_icon_image, bg=colours["d_menu_bn_u"], activebackground=colours["d_menu_bn_p"], relief="sunken", borderwidth=0, command = goto_main_page_button)
+d_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
 
+d_name_label = tk.Label(dispense_page, text="", font=("Trebuchet MS", 24), bg=colours["pn_bg"])
+d_name_label.place(relx=0.5, rely=0, relwidth=0.6, relheight=0.2, anchor="n")
 
+d_amount_frames = []
+for disp_count in range(6):
+    d_amount_frames.append(tk.Frame(dispense_page, bg=colours["d_frame"], highlightbackground="white", highlightthickness=2))
+
+d_amount_frames[0].place(relx = 0.04, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+d_amount_frames[1].place(relx = 0.20, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+d_amount_frames[2].place(relx = 0.36, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+d_amount_frames[3].place(relx = 0.52, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+d_amount_frames[4].place(relx = 0.68, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+d_amount_frames[5].place(relx = 0.84, rely = 0.2, relwidth = 0.12, relheight = 0.6, anchor="nw")
+
+d_icons = []
+d_amount_button = []
+d_amount_increase_button = []
+d_amount_decrease_button = []
+for disp_count in range(6):
+    d_icons.append(tk.Label(d_amount_frames[disp_count], bg=colours["d_frame"], anchor="c"))
+    d_icons[disp_count].place(relx = 0, rely = 0, relwidth = 1, relheight = 0.3, anchor="nw")
+
+    d_amount_button.append(tk.Button(d_amount_frames[disp_count], bg=colours["d_entry"], activebackground=colours["d_entry"], borderwidth=2, relief="solid", text="0", padx=5, pady=10, font=("Trebuchet MS",22), anchor="c", disabledforeground="black", state ="disabled"))
+    d_amount_button[disp_count].place(relx = 0.5, rely = 0.6, relwidth = 0.9, relheight = 0.2, anchor="n")
+
+    d_amount_increase_button.append(tk.Button(d_amount_frames[disp_count], bg=colours["d_frame"], activebackground=colours["d_frame"],  borderwidth=0, relief="sunken", text="+", font=("Trebuchet MS",26), anchor="c", disabledforeground="black"))
+    d_amount_increase_button[disp_count].place(relx = 0.5, rely = 0.4, relwidth = 0.9, relheight = 0.2, anchor="n")
+
+    d_amount_decrease_button.append(tk.Button(d_amount_frames[disp_count], bg=colours["d_frame"], activebackground=colours["d_frame"],  borderwidth=0, relief="sunken", text="−", font=("Trebuchet MS",26), anchor="c", disabledforeground="black"))
+    d_amount_decrease_button[disp_count].place(relx = 0.5, rely = 0.8, relwidth = 0.9, relheight = 0.2, anchor="n")
+
+d_amount_increase_button[0].configure(command=lambda:dispense_page_increase_button(0))
+d_amount_increase_button[1].configure(command=lambda:dispense_page_increase_button(1))
+d_amount_increase_button[2].configure(command=lambda:dispense_page_increase_button(2))
+d_amount_increase_button[3].configure(command=lambda:dispense_page_increase_button(3))
+d_amount_increase_button[4].configure(command=lambda:dispense_page_increase_button(4))
+d_amount_increase_button[5].configure(command=lambda:dispense_page_increase_button(5))
+d_amount_decrease_button[0].configure(command=lambda:dispense_page_decrease_button(0))
+d_amount_decrease_button[1].configure(command=lambda:dispense_page_decrease_button(1))
+d_amount_decrease_button[2].configure(command=lambda:dispense_page_decrease_button(2))
+d_amount_decrease_button[3].configure(command=lambda:dispense_page_decrease_button(3))
+d_amount_decrease_button[4].configure(command=lambda:dispense_page_decrease_button(4))
+d_amount_decrease_button[5].configure(command=lambda:dispense_page_decrease_button(5))
 
 #Pill Page
 
@@ -1284,30 +1521,33 @@ pd_edit_button.place(relx=0.65, rely=0.85, relwidth=5/32, relheight=0.08, anchor
 pd_chart_frame = tk.Frame(pill_detail_page, bg=colours["pd_bg"])
 pd_chart_frame.place(relx=0.05, rely=0.2, relwidth=0.35, relheight=0.6)
 
-pd_chart_labels = []
-pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="Empty"))
-pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="1 Month"))
-pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="2 Months"))
-pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="3 Months"))
-pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="4 Months"))
+pd_chart_bar = tk.Frame(pd_chart_frame, bg=colours["pd_bc"], highlightbackground=colours["pd_ln"], highlightthickness=3)
+pd_chart_bar.place(relx=0.65, rely=0.9, relwidth=0.2, relheight=0.5, anchor="sw")
 
-pd_chart_labels[0].place(relx=0.1, rely=0.9, relwidth=0.4, relheight=0.2, anchor="w")
-pd_chart_labels[1].place(relx=0.1, rely=0.7, relwidth=0.4, relheight=0.2, anchor="w")
-pd_chart_labels[2].place(relx=0.1, rely=0.5, relwidth=0.4, relheight=0.2, anchor="w")
-pd_chart_labels[3].place(relx=0.1, rely=0.3, relwidth=0.4, relheight=0.2, anchor="w")
-pd_chart_labels[4].place(relx=0.1, rely=0.1, relwidth=0.4, relheight=0.2, anchor="w")
+pd_chart_labels = []
+pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="Empty", anchor="e"))
+pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="1 Month", anchor="e"))
+pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="2 Months", anchor="e"))
+pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="3 Months", anchor="e"))
+pd_chart_labels.append(tk.Label(pd_chart_frame, bg=colours["pd_bg"], font=("Trebuchet MS", 16), text="4 Months", anchor="e"))
+
+pd_chart_labels[0].place(relx=0.1, rely=0.9, relwidth=0.34, relheight=0.2, anchor="w")
+pd_chart_labels[1].place(relx=0.1, rely=0.7, relwidth=0.34, relheight=0.2, anchor="w")
+pd_chart_labels[2].place(relx=0.1, rely=0.5, relwidth=0.34, relheight=0.2, anchor="w")
+pd_chart_labels[3].place(relx=0.1, rely=0.3, relwidth=0.34, relheight=0.2, anchor="w")
+pd_chart_labels[4].place(relx=0.1, rely=0.1, relwidth=0.34, relheight=0.2, anchor="w")
 
 pd_chart_lines = []
 for chart_count in range(7):
     pd_chart_lines.append(tk.Frame(pd_chart_frame, bg=colours["pd_ln"]))
 
-pd_chart_lines[0].place(relx=0.5, rely=0.1, width=3, relheight=0.8)
-pd_chart_lines[1].place(relx=0.5, rely=0.9, relwidth=0.5, height=3)
-pd_chart_lines[2].place(relx=0.48, rely=0.9, relwidth=0.02, height=3)
-pd_chart_lines[3].place(relx=0.48, rely=0.7, relwidth=0.02, height=3)
-pd_chart_lines[4].place(relx=0.48, rely=0.5, relwidth=0.02, height=3)
-pd_chart_lines[5].place(relx=0.48, rely=0.3, relwidth=0.02, height=3)
-pd_chart_lines[6].place(relx=0.48, rely=0.1, relwidth=0.02, height=3)
+pd_chart_lines[0].place(relx=0.5, rely=0.9, width=3, relheight=0.84, anchor="sw")
+pd_chart_lines[1].place(relx=0.5, rely=0.9, relwidth=0.5, height=3, anchor="sw")
+pd_chart_lines[2].place(relx=0.48, rely=0.9, relwidth=0.02, height=3, anchor="sw")
+pd_chart_lines[3].place(relx=0.48, rely=0.7, relwidth=0.02, height=3, anchor="sw")
+pd_chart_lines[4].place(relx=0.48, rely=0.5, relwidth=0.02, height=3, anchor="sw")
+pd_chart_lines[5].place(relx=0.48, rely=0.3, relwidth=0.02, height=3, anchor="sw")
+pd_chart_lines[6].place(relx=0.48, rely=0.1, relwidth=0.02, height=3, anchor="sw")
 
 pd_data_frame = tk.Frame(pill_detail_page, bg=colours["pd_bg"])
 pd_data_frame.place(relx=0.45, rely=0.2, relwidth=0.45, relheight=0.6)
@@ -1499,11 +1739,73 @@ quantity_page.place(x=0, y=0, relwidth=1, relheight=1)
 q_back_button = tk.Button(quantity_page, image=back_icon_image, bg=colours["q_menu_bn_u"], activebackground=colours["q_menu_bn_p"], relief="sunken", borderwidth=0, command=goto_main_page_button)
 q_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
 
+q_page_label = tk.Label(quantity_page, text="Quantity", font=("Trebuchet MS", 24, "underline"), bg=colours["q_bg"])
+q_page_label.place(relx=0.5, rely=0, relwidth=0.5, relheight=0.2, anchor="n")
 
+q_chart_frame = tk.Frame(quantity_page, bg=colours["q_bg"])
+q_chart_frame.place(relx=0.05, rely=0.2, relwidth=0.9, relheight=0.7)
 
+q_chart_bars = []
+for chart_count in range(6):
+    q_chart_bars.append(tk.Frame(q_chart_frame, bg=colours["q_bc"], highlightbackground=colours["q_ln"], highlightthickness=3))
 
+q_chart_bars[0].place(relx=0.23, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
+q_chart_bars[1].place(relx=0.36, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
+q_chart_bars[2].place(relx=0.49, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
+q_chart_bars[3].place(relx=0.62, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
+q_chart_bars[4].place(relx=0.75, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
+q_chart_bars[5].place(relx=0.88, rely=0.7, relwidth=0.08, relheight=0.5, anchor="sw")
 
+q_chart_labels = []
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="Empty", anchor="e"))
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="1 Month", anchor="e"))
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="2 Months", anchor="e"))
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="3 Months", anchor="e"))
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="4 Months", anchor="e"))
+q_chart_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="Quantity", anchor="e"))
 
+q_chart_labels[0].place(relx=0, rely=0.69, relwidth=0.16, relheight=0.15, anchor="w")
+q_chart_labels[1].place(relx=0, rely=0.54, relwidth=0.16, relheight=0.15, anchor="w")
+q_chart_labels[2].place(relx=0, rely=0.39, relwidth=0.16, relheight=0.15, anchor="w")
+q_chart_labels[3].place(relx=0, rely=0.24, relwidth=0.16, relheight=0.15, anchor="w")
+q_chart_labels[4].place(relx=0, rely=0.09, relwidth=0.16, relheight=0.15, anchor="w")
+q_chart_labels[5].place(relx=0, rely=0.92, relwidth=0.16, relheight=0.15, anchor="w")
+
+q_chart_lines = []
+for chart_count in range(7):
+    q_chart_lines.append(tk.Frame(q_chart_frame, bg=colours["pd_ln"]))
+
+q_chart_lines[0].place(relx=0.18, rely=0.7, width=3, relheight=0.85, anchor="sw")
+q_chart_lines[1].place(relx=0.18, rely=0.7, relwidth=0.82, height=3, anchor="sw")
+q_chart_lines[2].place(relx=0.17, rely=0.7, relwidth=0.01, height=3, anchor="sw")
+q_chart_lines[3].place(relx=0.17, rely=0.55, relwidth=0.01, height=3, anchor="sw")
+q_chart_lines[4].place(relx=0.17, rely=0.4, relwidth=0.01, height=3, anchor="sw")
+q_chart_lines[5].place(relx=0.17, rely=0.25, relwidth=0.01, height=3, anchor="sw")
+q_chart_lines[6].place(relx=0.17, rely=0.1, relwidth=0.01, height=3, anchor="sw")
+
+q_chart_icons = []
+for chart_count in range(6):
+    q_chart_icons.append(tk.Label(q_chart_frame, bg=colours["q_bg"], anchor="c"))
+
+q_chart_icons[0].place(relx = 0.27, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+q_chart_icons[1].place(relx = 0.40, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+q_chart_icons[2].place(relx = 0.53, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+q_chart_icons[3].place(relx = 0.66, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+q_chart_icons[4].place(relx = 0.79, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+q_chart_icons[5].place(relx = 0.92, rely = 0.72, relwidth = 0.08, relheight = 0.12, anchor="n")
+
+q_chart_qty_labels = []
+for chart_count in range(6):
+    q_chart_qty_labels.append(tk.Label(q_chart_frame, bg=colours["q_bg"], font=("Trebuchet MS", 16), text="", anchor="c"))
+
+q_chart_qty_labels[0].place(relx = 0.27, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+q_chart_qty_labels[1].place(relx = 0.40, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+q_chart_qty_labels[2].place(relx = 0.53, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+q_chart_qty_labels[3].place(relx = 0.66, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+q_chart_qty_labels[4].place(relx = 0.79, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+q_chart_qty_labels[5].place(relx = 0.92, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
+
+#Account Page
 account_page = Page(window, bg=colours["a_content_bg"])
 account_page.place(x=0, y=0, relwidth=1, relheight=1)
 
