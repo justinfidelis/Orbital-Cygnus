@@ -78,18 +78,21 @@ The purpose of each dependency is as follows:
 * Displays basic information of the user
 * To be used under user sharing
 
-![Pill Storage](https://user-images.githubusercontent.com/65007534/123635052-c25eb480-d84d-11eb-8eaa-12848cbd61ac.png)
-![Pill Edit](https://user-images.githubusercontent.com/65007534/123635105-d9050b80-d84d-11eb-8cc9-7f5ec4d32e03.png)
+![Profile Menu](https://user-images.githubusercontent.com/65007534/123635997-eb337980-d84e-11eb-98d3-abd226a4dd1e.png)
 
 <u>Pill Fragment</u>
 * Starts out on a pill storage screen with 6 containers
 * CLick on any container to open up the pill edit screen
 * Comes with 6 colours and 7 shapes
 
-![Setting Fragment](https://user-images.githubusercontent.com/65007534/123635608-72342200-d84e-11eb-855a-4d573cf818f3.png)
+![Pill Storage](https://user-images.githubusercontent.com/65007534/123635052-c25eb480-d84d-11eb-8eaa-12848cbd61ac.png)
+![Pill Edit](https://user-images.githubusercontent.com/65007534/123635105-d9050b80-d84d-11eb-8cc9-7f5ec4d32e03.png)
 
 <u>Setting Fragment</u>
 * Change Password
+
+![Setting Fragment](https://user-images.githubusercontent.com/65007534/123635608-72342200-d84e-11eb-855a-4d573cf818f3.png)
+
 
 <u>Features yet to be implemented</u>
 * Ability to make and update basic profile settings
