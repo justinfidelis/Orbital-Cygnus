@@ -13,19 +13,19 @@ class Page(tk.Frame):
 
 class pill:
     def __init__(self, name, icon_shape, icon_colour, qty, dosage_days, dosage_times, dosage_amount):
-        self.name = name
-        self.icon_shape = icon_shape
-        self.icon_colour = icon_colour
-        self.qty = qty
-        self.dosage_days = dosage_days
-        self.dosage_times = dosage_times
-        self.dosage_amount = dosage_amount
+        self.name = name #name of pill
+        self.icon_shape = icon_shape #number specifying the pill icon's shape
+        self.icon_colour = icon_colour #number specifying the pill icon's colour
+        self.qty = qty #amount of pills remaining in the dispenser
+        self.dosage_days = dosage_days #list of 7 bool values corresponding to days of the week when the pills are to be taken
+        self.dosage_times = dosage_times #list of 4 bool values corresponding to times of the day (morning, afteroon, evening, night) when the pills are to be taken
+        self.dosage_amount = dosage_amount #int specifying the number of pills to be taken each time
         return
     def get_icon_id(self):
         if self.icon_shape == -1:
             return 0
         return 6 * self.icon_shape + self.icon_colour + 1
-    def get_exhaust_days(self):
+    def get_exhaust_days(self): #get the number of days from today before the pills run out
         cons_d = sum(self.dosage_times) * self.dosage_amount
         cons_w = sum(self.dosage_days) * cons_d
         weeks = math.floor(self.qty / cons_w)
@@ -36,15 +36,15 @@ class pill:
             if remainder > 0:
                 exhaust_days += 1
         return exhaust_days
-    def get_exhaust_date(self):
+    def get_exhaust_date(self): #get the number of date when the pills will run out
         current_time = time.time()
         exhaust_date = self.get_exhaust_days() * 24 * 60 * 60 + current_time
         return time.localtime(exhaust_date)
 
 class user:
-    def __init__(self, email, username, first_name, last_name, share_user1, share_user2, share_user3):
+    def __init__(self, email, userID, first_name, last_name, share_user1, share_user2, share_user3):
         self.email = email
-        self.username = username
+        self.userID = userID
         self.first_name = first_name
         self.last_name = last_name
         self.share_user1 = share_user1
@@ -52,10 +52,10 @@ class user:
         self.share_user3 = share_user3
         return
 
-class dosage_table:
+class dosage_table: #basically a 3D array containing the number of each pill to be dispensed on each day at each time
     def __init__(self, pill_list):
         self.count = len(pill_list) - 1
-        self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)]
+        self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)] #table[pill][day][time], eg. table[3][4][2] will reference the number of pills[3] that is to be dispensed on Friday Evening
         for index in range(self.count):
             temp_day = [0] * 4
             for i in range(4):
@@ -67,7 +67,7 @@ class dosage_table:
                 else:
                     self.table[index][i] = [0,0,0,0]
         return
-    def update_single(self, pill, index):
+    def update_single(self, pill, index): #update table[index] with pill details
         if index >= self.count:
             return False
         temp_day = [0] * 4
@@ -80,7 +80,7 @@ class dosage_table:
             else:
                 self.table[index][i] = [0,0,0,0]
         return True
-    def update_all(self, pill_list):
+    def update_all(self, pill_list): #update table[index] with pill_list[] details
         self.count = len(pill_list) - 1
         self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)]
         for index in range(len(pill_list) - 1):
@@ -94,7 +94,7 @@ class dosage_table:
                 else:
                     self.table[index][i] = [0,0,0,0]
         return
-    def add_pill(self, pill):
+    def add_pill(self, pill): #appends 2D list to the table with new pill details
         temp_day = [0] * 4
         temp_week = []
         for i in range(4):
@@ -107,17 +107,17 @@ class dosage_table:
                 self.table[index][i] = [0,0,0,0]
         self.table.append(temp_week)
         self.count += 1
-    def delete_pill(self, index):
+    def delete_pill(self, index): #deletes 2D list at index from the table
         self.table.pop(index)
         self.count -= 1
         return
-    def get_dosage(index, day, time):
+    def get_dosage(index, day, time): #returns a list of the number of each pill to be dispensed at the specified day and time 
         dosage_list = []
         for i in range(self.count):
             dosage_list.append(self.table[i][day][time])
         return dosage_list
 
-class day_time:
+class day_time: #stores hour and minute 
     def __init__(self, hour, minute):
         self.hour = hour
         self.minute = minute
@@ -134,22 +134,24 @@ class day_time:
             return False
         return True
 
-class storage:
+class storage: #stores user data for saving
     def __init__(self, pills, time_settings, mode):
         self.pills = pills
         self.time_setting = time_settings
         self.mode = mode
         return
 
+#Saves data into "user_data" file, called everytime data is modified
 def save_offline_data():
     temp_storage = storage(pills, time_settings, app_mode)
     with open("user_data.p", "wb") as file:
         pickle.dump(temp_storage, file)
     return
 
+#Reads data from "user_data" file, called upon application startup
 def load_offline_data():
     global pills, time_settings, app_mode, dosage_info
-    try:
+    try: #if file is found, load data
         with open("user_data.p", "rb") as file:
             temp_storage = pickle.load(open("user_data.p", "rb"))
             pills = temp_storage.pills
@@ -157,7 +159,7 @@ def load_offline_data():
             app_mode = temp_storage.mode
             dosage_info = dosage_table(pills)
             update_time_thresholds()
-    except FileNotFoundError:
+    except FileNotFoundError: #if file is not found, create empty file
         pill_1 = pill("Aspirin", 1, 2, 100, [True, True, True, True, True, True, True],[True, False, False, True], 1) #For testing only
         pill_2 = pill("Omeprazole", 2, 4, 100, [False, True, True, True, True, True, False],[True, True, True, False], 2) #For testing only
         pills = [pill_1, pill_2, add_pill]
@@ -173,25 +175,29 @@ def start_button():
     load_offline_data()
     if app_mode == 0:
         setup_page.lift()
-    else:
-        #if app_mode == 1:
-
-        #if app_mode == 2:
+    elif app_mode == 1:
+        s_wifi_button.place_forget()
+        s_lines[3].place_forget()
+        goto_main_page_button()
+    elif app_mode == 2:
         goto_main_page_button()
     return
 
+#Setup page: Set up application in offline mode
 def setup_offline_button_command():
     global app_mode
     app_mode = 1
     goto_main_page_button()
     return
 
+#Setup page: Set up application in online mode
 def setup_online_button_command():
     global app_mode
     app_mode = 2
     #goto login page
     return
 
+#Main page: Called every 5 seconds to update time in main page, does not get called when not at main page
 def main_time_update():
     if at_main == True:
         m_time_label.configure(text=time.strftime(" %H:%M"))
@@ -224,11 +230,15 @@ def goto_quantity_page_button():
     at_main = False
     return
 
+#Go to history page
+def goto_history_page_button():
+    return
+
 #Go to settings page
 def goto_setting_page_button():
     global at_main
     settings_page.lift()
-    setting_wifi_button()
+    setting_time_button()
     at_main = False
     return
 
@@ -248,6 +258,7 @@ def goto_main_page_button():
     main_page.lift()
     return
 
+#Open numpad page: 
 def open_numpad_button(page, title, button, mode): #mode == 0: normal; 1: math; 2: time
     global current_entry_button, current_page, numpad_operator, numpad_mode
     numpad_mode = mode
@@ -270,6 +281,7 @@ def open_numpad_button(page, title, button, mode): #mode == 0: normal; 1: math; 
         n_button_special_2.configure(state="disabled", text="")
     return
 
+#Numpad page: Writes the corresponding number to the entry bar
 def numpad_type_button(number):
     n_entry.icursor("end")
     if numpad_mode == 1:
@@ -285,6 +297,7 @@ def numpad_type_button(number):
         n_entry.insert("end", number)
     return
 
+#Numpad page: Writes a ":" to the entry bar, only when numpad is in time mode
 def numpad_colon_button():
     n_entry.icursor("end")
     n_entry_length = len(n_entry.get())
@@ -292,6 +305,7 @@ def numpad_colon_button():
         n_entry.insert("end", ":")
     return
 
+#Numpad page: Backspace
 def numpad_backspace_button():
     global numpad_operator
     n_entry.icursor("end")
@@ -301,6 +315,7 @@ def numpad_backspace_button():
     n_entry.delete(index-1, index) 
     return
 
+#Numpad page: Performs math on the text in the entry bar
 def numpad_math():
     global numpad_operator
     entry_string = n_entry.get()
@@ -316,6 +331,7 @@ def numpad_math():
     numpad_operator = 0
     return result
 
+#Numpad page: Writes either "+" or "−" to the entry bar
 def numpad_math_button(type): #type == -1: minus, type == 1: plus
     global numpad_operator
     n_entry.icursor("end")
@@ -327,6 +343,7 @@ def numpad_math_button(type): #type == -1: minus, type == 1: plus
         n_button_enter.configure(text="=")
     return
 
+#Numpad page: The enter button has 2 settings, when numpad is in math mode and an math operator is in the entry box, it performs the sum/difference calculation. Else, it saves the number in entry to the button that opened the numpad
 def numpad_enter_button():
     global numpad_operator
     n_entry.icursor("end")
@@ -362,11 +379,12 @@ def numpad_enter_button():
         current_page.lift()
     return
 
+#Numpad page: Does not save recent edits to the button that opened the numpad
 def numpad_cancel_button():
     current_page.lift()
     return
 
-#Open keyboard; page: Page to return to after closing keyboard, label: Label that contains input title, button: Button that stores input text
+#Open keyboard page: Page to return to after closing keyboard, label: Label that contains input title, button: Button that stores input text
 def open_keyboard_button(page, label, button): 
     global current_entry_button, current_page
     keyboard_page.lift()
@@ -523,14 +541,26 @@ def dispense_page_update():
             d_amount_frames[count].place_forget()
     return
 
+#Dispense Page: Increase the number of the specified pill to be dispensed by one
 def dispense_page_increase_button(pill_index):
     current_amount = int(d_amount_button[pill_index].cget("text"))
     d_amount_button[pill_index].configure(text=min(current_amount + 1,5))
     return
 
+#Dispense Page: Decrease the number of the specified pill to be dispensed by one
 def dispense_page_decrease_button(pill_index):
     current_amount = int(d_amount_button[pill_index].cget("text"))
     d_amount_button[pill_index].configure(text=max(current_amount - 1,0))
+    return
+
+#Dispense Page: Dispense the specified number of pills
+def dispense_dipense_button():
+    global pills
+    #Hardware stuff
+    for i in range(len(pills) - 1):
+        current_disp = int(d_amount_button[i].cget("text"))
+        pills[i].qty = max(pills[i].qty - current_disp, 0)
+    #Update database
     return
 
 #Pill Page: Switches to left pill
@@ -553,7 +583,7 @@ def pill_right_nav_button():
     pill_update_pill_icons()
     return
 
-#Pill Page: Update current pill
+#Pill Page: Update current pill displayed on the pill navigation page
 def pill_update_pill_icons():
     p_pill_name_label.configure(text=pills[current_pill].name)
     p_pill_button.configure(image=pill_images[pills[current_pill].get_icon_id()])
@@ -618,11 +648,13 @@ def pill_edit_page_icons_disable(shape_id, colour_id):
             pe_icon_colour_buttons[i].configure(relief="sunken", bg=colours["pe_content_bg"], activebackground=colours["pe_content_bg"], borderwidth=0, command="")
     return
 
+#Pill Edit Page: Update page with current_pill's information
 def pill_edit_page_update():
     pe_pill_name_button.configure(text=pills[current_pill].name)
     pe_icon_button.configure(image=pill_images_small[pills[current_pill].get_icon_id()])
     return
 
+#Go to Pill Edit Page
 def goto_pill_edit_page_button():
     pill_edit_page_update()
     pill_edit_page_icons_disable(pills[current_pill].icon_shape, pills[current_pill].icon_colour)
@@ -630,6 +662,7 @@ def goto_pill_edit_page_button():
     pill_edit_pill_button()
     return
 
+#Pill Edit Page: Enable editing of pill information, namely, pill name, icon_colour and icon_shape
 def pill_edit_pill_edit_button():
     global temp_pill, pe_editing
     pe_pill_edit_button.configure(state="disabled")
@@ -643,6 +676,7 @@ def pill_edit_pill_edit_button():
     pe_editing = True
     return
 
+#Pill Edit Page: Save changes to pill information
 def pill_edit_pill_save_button():
     global pe_editing
     pe_pill_edit_button.configure(state="normal")
@@ -660,6 +694,7 @@ def pill_edit_pill_save_button():
     #Update database
     return
 
+#Pill Edit Page: Discard changes to pill information
 def pill_edit_pill_cancel_button():
     global pe_editing
     pe_pill_edit_button.configure(state="normal")
@@ -672,6 +707,7 @@ def pill_edit_pill_cancel_button():
     pe_editing = False
     return
 
+#Pill Edit Page: Set pill_shape to the corresponding shape_id
 def pill_edit_pill_shape_button(shape_id):
     global temp_pill
     pe_icon_shape_buttons[temp_pill.icon_shape].configure(relief="flat", bg=colours["pe_content_bg"])
@@ -680,6 +716,7 @@ def pill_edit_pill_shape_button(shape_id):
     pe_icon_button.configure(image=pill_images_small[temp_pill.get_icon_id()])
     return
 
+#Pill Edit Page: Set pill_colour to the corresponding colour_id
 def pill_edit_pill_colour_button(colour_id):
     global temp_pill
     pe_icon_colour_buttons[temp_pill.icon_colour].configure(relief="flat", bg=colours["pe_content_bg"])
@@ -688,6 +725,7 @@ def pill_edit_pill_colour_button(colour_id):
     pe_icon_button.configure(image=pill_images_small[temp_pill.get_icon_id()])
     return
 
+#Pill Edit Page: Update schedule page's day buttons with dosage_days information
 def pill_edit_schedule_day_buttons_update(day, dosage_days):
     if dosage_days[day]:
         pe_schedule_days_buttons[day].configure(relief="sunken", bg=colours["pe_content_entry"], borderwidth=2)
@@ -695,6 +733,7 @@ def pill_edit_schedule_day_buttons_update(day, dosage_days):
         pe_schedule_days_buttons[day].configure(relief="ridge", bg=colours["pe_content_bg"], borderwidth=2)
     return
 
+#Pill Edit Page: Update schedule page's time buttons with dosage_times information
 def pill_edit_schedule_time_buttons_update(time, dosage_times):
     if dosage_times[time]:
         pe_schedule_times_buttons[time].configure(relief="sunken", bg=colours["pe_content_entry"], borderwidth=2)
@@ -702,18 +741,21 @@ def pill_edit_schedule_time_buttons_update(time, dosage_times):
         pe_schedule_times_buttons[time].configure(relief="ridge", bg=colours["pe_content_bg"], borderwidth=2)
     return
 
+#Pill Edit Page: Toggles specified day setting value
 def pill_edit_schedule_days_button(day):
     global temp_pill
     temp_pill.dosage_days[day] = not temp_pill.dosage_days[day]
     pill_edit_schedule_day_buttons_update(day, temp_pill.dosage_days)
     return
 
+#Pill Edit Page: Toggles specified time setting value
 def pill_edit_schedule_times_button(time):
     global temp_pill
     temp_pill.dosage_times[time] = not temp_pill.dosage_times[time]
     pill_edit_schedule_time_buttons_update(time, temp_pill.dosage_times)
     return
 
+#Pill Edit Page: Enables buttons
 def pill_edit_schedule_buttons_enable():
     pe_schedule_days_buttons[0].configure(command=lambda:pill_edit_schedule_days_button(0))
     pe_schedule_days_buttons[1].configure(command=lambda:pill_edit_schedule_days_button(1))
@@ -733,6 +775,7 @@ def pill_edit_schedule_buttons_enable():
 
     return
 
+#Pill Edit Page: Disables buttons
 def pill_edit_schedule_buttons_disable():
     for count in range(7):
         pe_schedule_days_buttons[count].configure(command="")
@@ -742,6 +785,7 @@ def pill_edit_schedule_buttons_disable():
     pe_schedule_amount_increase_button.configure(command="")
     return
 
+#Pill Edit Page: Decrease the standard dosage amount for the current pill (max of 5)
 def pill_edit_schedule_amount_decrease():
     global temp_pill
     if temp_pill.dosage_amount > 1:
@@ -749,6 +793,7 @@ def pill_edit_schedule_amount_decrease():
     pe_schedule_amount_button.configure(text=temp_pill.dosage_amount)
     return
 
+#Pill Edit Page: Increase the standard dosage amount for the current pill
 def pill_edit_schedule_amount_increase():
     global temp_pill
     if temp_pill.dosage_amount < 5:
@@ -756,6 +801,7 @@ def pill_edit_schedule_amount_increase():
     pe_schedule_amount_button.configure(text=temp_pill.dosage_amount)
     return
 
+#Pill Edit Page: Enables editing of pill schedule information
 def pill_edit_schedule_edit_button():
     global temp_pill, pe_editing
     pe_schedule_edit_button.configure(state="disabled")
@@ -770,6 +816,7 @@ def pill_edit_schedule_edit_button():
     pe_editing = True
     return
 
+#Pill Edit Page: Save changes to schedule information
 def pill_edit_schedule_save_button():
     global pe_editing
     if sum(temp_pill.dosage_days) == 0:
@@ -797,6 +844,7 @@ def pill_edit_schedule_save_button():
             #Update database
     return
 
+#Pill Edit Page: Discard changes to schedule information
 def pill_edit_schedule_cancel_button():
     global pe_editing
     pe_schedule_edit_button.configure(state="normal")
@@ -812,12 +860,14 @@ def pill_edit_schedule_cancel_button():
     pe_editing = False
     return
 
+#Pill Edit Page: Delete current pill
 def pill_edit_delete_delete_button():
     pe_delete_delete_button.configure(state="disabled")
     pe_delete_confirm_button.configure(state="normal")
     pe_delete_message_label.configure(text=f"Confirm deletion of {pills[current_pill].name}?\nThis cannot be undone.")
     return
-    
+
+#Pill Edit Page: Confirm deletion of current pill
 def pill_edit_delete_confirm_button():
     text = pills[current_pill].name
     pills.pop(current_pill)
@@ -827,6 +877,7 @@ def pill_edit_delete_confirm_button():
     p_message_label.configure(text=f"{text} deleted sucessfully.")
     return
 
+#Pill Edit Page: Go back to pill details page
 def pill_edit_back_button():
     if pe_editing == False:
         goto_pill_detail_page_button(current_pill)
@@ -838,6 +889,7 @@ def pill_edit_back_button():
         pe_schedule_message_label.configure(text="Would you like to save recent changes?")
     return
 
+#Pill Edit page: Go to pill information subpage
 def pill_edit_pill_button():
     global current_pe_page
     if pe_editing == False:
@@ -851,6 +903,7 @@ def pill_edit_pill_button():
         pe_schedule_message_label.configure(text="Would you like to save recent changes?")
     return
 
+#Pill Edit Page: Go to pill schedule subpage
 def pill_edit_schedule_button():
     global current_pe_page
     if pe_editing == False:
@@ -870,6 +923,7 @@ def pill_edit_schedule_button():
         pe_pill_message_label.configure(text="Would you like to save recent changes?")
     return
 
+#Pill Edit Page: Go to pill delete subpage
 def pill_edit_delete_button():
     global current_pe_page
     if pe_editing == False:
@@ -891,10 +945,12 @@ def pill_edit_delete_button():
         pe_schedule_message_label.configure(text="Would you like to save recent changes?")
     return
 
+#
 def pill_dispenser_open(index):
     #TODO hardware
     return
 
+#Quantity Page: Updates information in quantity page
 def quantity_page_update():
     for count in range(6):
         q_chart_bars[count].place_forget()
@@ -907,6 +963,7 @@ def quantity_page_update():
             q_chart_qty_labels[count].configure(text="")
     return
 
+#Account Page: Return to main page
 def account_back_button():
     if a_editing == False:
         goto_main_page_button()
@@ -918,6 +975,7 @@ def account_back_button():
         a_sharing_message.configure(text="Would you like to save recent changes?")
     return
 
+#Account Page: Go to general account settings subpage
 def account_general_button():
     global current_a_page
     if a_editing == False:
@@ -932,6 +990,7 @@ def account_general_button():
         a_sharing_message.configure(text="Would you like to save recent changes?")
     return
 
+#Account Page: Go to account sharing settings subpage
 def account_sharing_button():
     global current_a_page
     if a_editing == False:
@@ -946,6 +1005,7 @@ def account_sharing_button():
         a_general_message.configure(text="Would you like to save recent changes?")
     return
 
+#Account Page: Go to sccount password settings subpage
 def account_password_button():
     global current_a_page
     if a_editing == False:
@@ -963,6 +1023,7 @@ def account_password_button():
         a_sharing_message.configure(text="Would you like to save recent changes?")
     return
 
+#Account Page: Go to logout subpage
 def account_logout_button():
     global current_a_page
     if a_editing == False:
@@ -982,7 +1043,7 @@ def account_logout_button():
         a_sharing_message.configure(text="Would you like to save recent changes?")
     return
 
-
+#Account Page: Enables editing of general account information
 def account_general_edit_button():
     global temp_user, a_editing
     a_general_edit_button.configure(state="disabled")
@@ -990,13 +1051,12 @@ def account_general_edit_button():
     a_general_cancel_button.configure(state="normal")
     a_first_name_button.configure(state="normal", cursor="xterm")
     a_last_name_button.configure(state="normal", cursor="xterm")
-    a_username_button.configure(state="normal", cursor="xterm")
     temp_user.first_name = a_first_name_button.cget("text")
     temp_user.last_name = a_last_name_button.cget("text")
-    temp_user.username = a_username_button.cget("text")
     a_editing = True
     return
 
+#Account Page: Saves changes to general account information
 def account_general_save_button():
     global a_editing
     a_general_edit_button.configure(state="normal")
@@ -1004,12 +1064,12 @@ def account_general_save_button():
     a_general_cancel_button.configure(state="disabled")
     a_first_name_button.configure(state="disabled", cursor="left_ptr")
     a_last_name_button.configure(state="disabled", cursor="left_ptr")
-    a_username_button.configure(state="disabled", cursor="left_ptr")
     a_editing = False
     a_general_message.configure(text="")
     #Update database
     return
 
+#Account Page: Discards changes to general account information
 def account_general_cancel_button():
     global a_editing
     a_general_edit_button.configure(state="normal")
@@ -1017,11 +1077,11 @@ def account_general_cancel_button():
     a_general_cancel_button.configure(state="disabled")
     a_first_name_button.configure(state="disabled", cursor="left_ptr", text=temp_user.first_name)
     a_last_name_button.configure(state="disabled", cursor="left_ptr", text=temp_user.last_name)
-    a_username_button.configure(state="disabled", cursor="left_ptr", text=temp_user.username)
     a_editing = False
     a_general_message.configure(text="")
     return
 
+#Account Page: Enables editing of account sharing information
 def account_sharing_edit_button():
     global temp_user, a_editing
     a_sharing_edit_button.configure(state="disabled")
@@ -1036,6 +1096,7 @@ def account_sharing_edit_button():
     a_editing = True
     return
 
+#Account Page: Saves changes to account sharing information
 def account_sharing_save_button():
     global a_editing
     a_sharing_edit_button.configure(state="normal")
@@ -1049,6 +1110,7 @@ def account_sharing_save_button():
     #Update database
     return
 
+#Account Page: Discards changes to account sharing information
 def account_sharing_cancel_button():
     global a_editing
     a_sharing_edit_button.configure(state="normal")
@@ -1061,29 +1123,36 @@ def account_sharing_cancel_button():
     a_sharing_message.configure(text="")
     return
 
+#Account Page: Changes password
 def account_password_change_button():
-    #Update database code
+    #Checks if current password is correct
+    #Checks if new password and confirm password match
+    #Update database
     a_password_message.configure(text="Password changed successfully")
     a_password_current_button.configure(text="")
     a_password_new_button.configure(text="")
     a_password_confirm_button.configure(text="")
     return
 
+#Account Page: Cancel password change
 def account_password_cancel_button():
     a_password_current_button.configure(text="")
     a_password_new_button.configure(text="")
     a_password_confirm_button.configure(text="")
     return
 
+#Account Page: Logout from current account
 def account_logout_logout_button():
     a_logout_confirm_button.configure(state="normal")
     a_logout_logout_button.configure(state="disabled")
     return
 
+#Account Page: Confirm logout
 def account_logout_confirm_button():
     #Logout code here
     return
 
+#Setting Page: Go back to main page
 def setting_back_button():
     if s_editing == False:
         goto_main_page_button()
@@ -1092,7 +1161,7 @@ def setting_back_button():
         s_time_message.configure(text="Would you like to save recent changes?")
     return
 
-
+#Setting Page: Go to wifi subpage
 def setting_wifi_button():
     global current_s_page
     if s_editing == False:
@@ -1105,6 +1174,7 @@ def setting_wifi_button():
         s_time_message.configure(text="Would you like to save recent changes?")
     return
 
+#Setting Page: Go to time subpage
 def setting_time_button():
     global current_s_page
     if s_editing == False:
@@ -1118,13 +1188,15 @@ def setting_time_button():
         s_time_button.configure(bg=colours["s_menu_bn_p"])
     return
 
+#Updates time_thresholds 2D array to store the lower and upper bounds of the time windows. I.e. if morning is set to 0830H, time_thresholds[0] will contain [0800, 0900] when time_margin = 30. Function called when time settings are updated
 def update_time_thresholds():
     global time_thresholds
     for i in range(4):
-        time_thresholds[i][0] = max(time_settings[i].hour * 60 + time_settings[i].minute - 30, 0)
-        time_thresholds[i][1] = min(time_settings[i].hour * 60 + time_settings[i].minute + 30, 1439)
+        time_thresholds[i][0] = max(time_settings[i].hour * 60 + time_settings[i].minute - time_margin, 0)
+        time_thresholds[i][1] = min(time_settings[i].hour * 60 + time_settings[i].minute + time_margin, 1439)
     return
 
+#Setting Page: Enables editing of time settings
 def setting_time_edit_button():
     global temp_user, s_editing
     s_time_edit_button.configure(state="disabled")
@@ -1141,6 +1213,7 @@ def setting_time_edit_button():
     s_editing = True
     return
 
+#Settings Page: Saves changes to time settings
 def setting_time_save_button():
     global s_editing, time_settings
     s_time_edit_button.configure(state="normal")
@@ -1161,6 +1234,7 @@ def setting_time_save_button():
     #Update database
     return
 
+#Setting Page: Discards changes to time settings
 def setting_time_cancel_button():
     global s_editing
     s_time_edit_button.configure(state="normal")
@@ -1181,17 +1255,16 @@ def setting_time_cancel_button():
 #Lighter colours used: Blue "#E5FFFF"; Green "#B7F4DA"; Yellow "#F7EF99"; Orange "#F4E3CD"; Red "#F2D1C6"; Purple "#D9B1EF"
 #Darker colours used: Blue "#74F0F7"; Green "#60F2B0"; Yellow "#F2E14B"; Orange "#EFB85F"; Red "#F28E6D"; Purple "#D9B1EF"
 
-numpad_mode = 0
-numpad_operator = 0
+numpad_mode = 0 #mode == 0: normal; 1: math; 2: time
+numpad_operator = 0 #1: plus, -1: minus
 
-shift = False
-capslock = False
+shift = False #Stores if keyboard shift is activated
+capslock = False #Stores if keyboard capslock is enabled
+
 app_mode = 1 #0: Initial set up; 1: Offline mode; 2: Online mode
 
-
-
-current_entry_button = None
-current_page = None
+current_entry_button = None #Stores the button that opened the numpad/keyboard. Current button text will be copied to keyboard/numpad entry bar, reverse will be performed upon saving
+current_page = None #Stores the page that the application is at when opening keyboard/numpad. Returns to that page upon exiting
 
 temp_user = user("","","","","","","")
 temp_pill = pill("",0,0,0,[False, False, False, False, False, False, False],[False, False, False, False], 0)
@@ -1202,6 +1275,7 @@ add_pill = pill("Add Medicine", -1, 0, 1, [False, False, False, False, False, Fa
 pills = []
 time_settings = []
 time_thresholds = [[0] * 2 for time_count in range(4)]
+time_margin = 30
 current_day = 0
 current_window = -1
 
@@ -1243,6 +1317,8 @@ colours = {
     "d_menu_bn_p": "#74F0F7",
     "d_entry": "#F2E14B",
     "d_frame": "#F7EF99",
+    "d_bn_u": "#F7EF99",
+    "d_bn_p": "#F2E14B",
     "pn_bg": "#98F3F9",
     "pn_menu_bn_u": "#98F3F9",
     "pn_menu_bn_p": "#74F0F7",
@@ -1393,7 +1469,7 @@ m_quantity_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_history_frame = tk.Frame(main_page, bg=colours["main_history_bg"])
 m_history_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.43, anchor="ne")
-m_history_button = tk.Button(m_history_frame, bg=colours["main_history_bg"], image=history_image, text=" History", compound="left", activebackground=colours["main_history_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_quantity_page_button)
+m_history_button = tk.Button(m_history_frame, bg=colours["main_history_bg"], image=history_image, text=" History", compound="left", activebackground=colours["main_history_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_history_page_button)
 m_history_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_account_frame = tk.Frame(main_page, bg=colours["main_account_bg"])
@@ -1474,6 +1550,10 @@ d_amount_decrease_button[2].configure(command=lambda:dispense_page_decrease_butt
 d_amount_decrease_button[3].configure(command=lambda:dispense_page_decrease_button(3))
 d_amount_decrease_button[4].configure(command=lambda:dispense_page_decrease_button(4))
 d_amount_decrease_button[5].configure(command=lambda:dispense_page_decrease_button(5))
+
+d_dispense_button = tk.Button(dispense_page, text="Dispense", font=("Trebuchet MS", 18), bg=colours["d_bn_u"], relief="solid", borderwidth=2, activebackground=colours["d_bn_p"], command=dispense_dipense_button)
+d_dispense_button.place(relx=0.5, rely=0.85, relwidth=5/32, relheight=0.08, anchor="n")
+
 
 #Pill Page
 
@@ -1844,17 +1924,17 @@ a_general_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08
 
 a_email_frame = tk.Frame(a_general_frame, bg=colours["a_content_bg"])
 a_email_label = tk.Label(a_email_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="Email: ", padx=10, pady=10, anchor="w")
-a_email_button = tk.Label(a_email_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=10, pady=10, font=("Trebuchet MS",18), anchor="w", state="disabled", disabledforeground="#666666")
+a_email_button = tk.Label(a_email_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=10, pady=10, font=("Trebuchet MS",18), anchor="w")
 a_email_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
 a_email_label.place(relx = 0, rely = 0, relwidth = 0.2, relheight = 1)
 a_email_button.place(relx = 0.2, rely = 0, relwidth = 0.8, relheight = 1)
 
-a_username_frame = tk.Frame(a_general_frame, bg=colours["a_content_bg"])
-a_username_label = tk.Label(a_username_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="Username: ", padx=10, pady=10, anchor="w")
-a_username_button = tk.Button(a_username_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", state="disabled", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_username_label, a_username_button))
-a_username_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.08)
-a_username_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
-a_username_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
+a_userID_frame = tk.Frame(a_general_frame, bg=colours["a_content_bg"])
+a_userID_label = tk.Label(a_userID_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User ID: ", padx=10, pady=10, anchor="w")
+a_userID_button = tk.Label(a_userID_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w")
+a_userID_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.08)
+a_userID_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
+a_userID_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
 
 a_first_name_frame = tk.Frame(a_general_frame, bg=colours["a_content_bg"])
 a_first_name_label = tk.Label(a_first_name_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="First Name: ", padx=10, pady=10, anchor="w")
@@ -1890,21 +1970,21 @@ a_sharing_title = tk.Label(a_sharing_frame, bg=colours["a_content_bg"], font=("T
 a_sharing_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
 
 a_sharing_user1_frame = tk.Frame(a_sharing_frame, bg=colours["a_content_bg"])
-a_sharing_user1_label = tk.Label(a_sharing_user1_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 1: ", padx=10, pady=10, anchor="w")
+a_sharing_user1_label = tk.Label(a_sharing_user1_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 1 User ID: ", padx=10, pady=10, anchor="w")
 a_sharing_user1_button = tk.Button(a_sharing_user1_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", state="disabled", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_sharing_user1_label, a_sharing_user1_button))
 a_sharing_user1_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
 a_sharing_user1_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
 a_sharing_user1_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
 
 a_sharing_user2_frame = tk.Frame(a_sharing_frame, bg=colours["a_content_bg"])
-a_sharing_user2_label = tk.Label(a_sharing_user2_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 2: ", padx=10, pady=10, anchor="w")
+a_sharing_user2_label = tk.Label(a_sharing_user2_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 2 User ID: ", padx=10, pady=10, anchor="w")
 a_sharing_user2_button = tk.Button(a_sharing_user2_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", state="disabled", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_sharing_user2_label, a_sharing_user2_button))
 a_sharing_user2_frame.place(relx = 0.05, rely = 0.32, relwidth = 0.9, relheight = 0.08)
 a_sharing_user2_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
 a_sharing_user2_button.place(relx = 0.3, rely = 0, relwidth = 0.7, relheight = 1)
 
 a_sharing_user3_frame = tk.Frame(a_sharing_frame, bg=colours["a_content_bg"])
-a_sharing_user3_label = tk.Label(a_sharing_user3_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 3: ", padx=10, pady=10, anchor="w")
+a_sharing_user3_label = tk.Label(a_sharing_user3_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), text="User 3 User ID: ", padx=10, pady=10, anchor="w")
 a_sharing_user3_button = tk.Button(a_sharing_user3_frame, bg=colours["a_content_entry"], activebackground=colours["a_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", state="disabled", disabledforeground="#666666", command = lambda: open_keyboard_button(account_page, a_sharing_user3_label, a_sharing_user3_button))
 a_sharing_user3_frame.place(relx = 0.05, rely = 0.44, relwidth = 0.9, relheight = 0.08)
 a_sharing_user3_label.place(relx = 0, rely = 0, relwidth = 0.3, relheight = 1)
@@ -1985,11 +2065,11 @@ s_menu_frame.place(relx = 0, rely = 0, relwidth = 0.12, relheight = 1)
 s_back_button = tk.Button(s_menu_frame, image=back_icon_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_back_button, anchor = "c")
 s_back_button.place(relx=0.5, rely=0.0, relheight=0.2, relwidth=1, anchor="n")
 
-s_wifi_button = tk.Button(s_menu_frame, image=wifi_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_wifi_button, anchor = "c")
-s_wifi_button.place(relx=0.5, rely=0.2, relheight=0.2, relwidth=1, anchor="n")
-
 s_time_button = tk.Button(s_menu_frame, image=clock_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_time_button, anchor = "c")
-s_time_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
+s_time_button.place(relx=0.5, rely=0.2, relheight=0.2, relwidth=1, anchor="n")
+
+s_wifi_button = tk.Button(s_menu_frame, image=wifi_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_wifi_button, anchor = "c")
+s_wifi_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
 
 s_lines = []
 for line_count in range(4):
