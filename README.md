@@ -72,7 +72,24 @@ The purpose of each dependency is as follows:
 * Home/Profile/Settings Fragments
 * Log-out feature that returns user to login screen
 
-![Sidebar Menu](https://user-images.githubusercontent.com/65007534/120193704-4f165280-c24f-11eb-8ecd-b38f88895b2a.png)
+![Sidebar Menu](https://user-images.githubusercontent.com/65007534/123634630-45333f80-d84d-11eb-989f-8875dcdd1ba9.png)
+
+<u>Profile Fragment</u>
+* Displays basic information of the user
+* To be used under user sharing
+
+![Pill Storage](https://user-images.githubusercontent.com/65007534/123635052-c25eb480-d84d-11eb-8eaa-12848cbd61ac.png)
+![Pill Edit](https://user-images.githubusercontent.com/65007534/123635105-d9050b80-d84d-11eb-8cc9-7f5ec4d32e03.png)
+
+<u>Pill Fragment</u>
+* Starts out on a pill storage screen with 6 containers
+* CLick on any container to open up the pill edit screen
+* Comes with 6 colours and 7 shapes
+
+![Setting Fragment](https://user-images.githubusercontent.com/65007534/123635608-72342200-d84e-11eb-855a-4d573cf818f3.png)
+
+<u>Setting Fragment</u>
+* Change Password
 
 <u>Features yet to be implemented</u>
 * Ability to make and update basic profile settings
