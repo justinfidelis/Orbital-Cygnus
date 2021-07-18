@@ -1,8 +1,7 @@
 import tkinter as tk
 from PIL import ImageTk,Image
-import math
-import time
-import pickle
+import math, time, pickle, os, subprocess, requests
+from urllib import request, error
 
 class Page(tk.Frame):
     def __init__(self, *args, **kwargs):
@@ -56,6 +55,7 @@ class dosage_table: #basically a 3D array containing the number of each pill to 
     def __init__(self, pill_list):
         self.count = len(pill_list) - 1
         self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)] #table[pill][day][time], eg. table[3][4][2] will reference the number of pills[3] that is to be dispensed on Friday Evening
+        self.total_pills = [[0] * 4 for i in range(7)] #table[day][time] that stores the total number of pills to be dispensed at that time
         for index in range(self.count):
             temp_day = [0] * 4
             for i in range(4):
@@ -64,12 +64,17 @@ class dosage_table: #basically a 3D array containing the number of each pill to 
             for i in range(7):
                 if pill_list[index].dosage_days[i]:
                     self.table[index][i] = temp_day
+                    for j in range(4):
+                        self.total_pills[i][j] += temp_day[j]
                 else:
                     self.table[index][i] = [0,0,0,0]
         return
     def update_single(self, pill, index): #update table[index] with pill details
         if index >= self.count:
             return False
+        for i in range(7):
+            for j in range(4):
+                self.total_pills[i][j] -= self.table[index][i][j]
         temp_day = [0] * 4
         for i in range(4):
             if pill.dosage_times[i]:
@@ -77,20 +82,25 @@ class dosage_table: #basically a 3D array containing the number of each pill to 
         for i in range(7):
             if pill.dosage_days[i]:
                 self.table[index][i] = temp_day
+                for j in range(4):
+                    self.total_pills[i][j] += temp_day[j]
             else:
                 self.table[index][i] = [0,0,0,0]
         return True
     def update_all(self, pill_list): #update table[index] with pill_list[] details
         self.count = len(pill_list) - 1
         self.table = [[[0] * 4 for i in range(7)] for j in range(self.count)]
-        for index in range(len(pill_list) - 1):
-            temp_day[i] = [0] * 4
+        self.total_pills = [[0] * 4 for i in range(7)]
+        for index in range(self.count):
+            temp_day = [0] * 4
             for i in range(4):
                 if pill_list[index].dosage_times[i]:
-                    temp_day = pill_list[index].dosage_amount
+                    temp_day[i] = pill_list[index].dosage_amount
             for i in range(7):
                 if pill_list[index].dosage_days[i]:
                     self.table[index][i] = temp_day
+                    for j in range(4):
+                        self.total_pills[i][j] += temp_day[j]
                 else:
                     self.table[index][i] = [0,0,0,0]
         return
@@ -103,19 +113,27 @@ class dosage_table: #basically a 3D array containing the number of each pill to 
         for i in range(7):
             if pill.dosage_days[i]:
                 temp_week.append(temp_day)
+                for j in range(4):
+                    self.total_pills[i][j] += temp_day[j]
             else:
                 self.table[index][i] = [0,0,0,0]
         self.table.append(temp_week)
         self.count += 1
     def delete_pill(self, index): #deletes 2D list at index from the table
+        for i in range(4):
+            for j in range(7):
+                self.total_pills[i][j] -= self.table[index][i][j]
         self.table.pop(index)
         self.count -= 1
         return
-    def get_dosage(index, day, time): #returns a list of the number of each pill to be dispensed at the specified day and time 
+    def get_dosage(self, index, day, time): #returns a list of the number of each pill to be dispensed at the specified day and time 
         dosage_list = []
         for i in range(self.count):
             dosage_list.append(self.table[i][day][time])
         return dosage_list
+    def has_dose(self, day, time):
+        test = self.total_pills[day][time] != 0
+        return test
 
 class day_time: #stores hour and minute 
     def __init__(self, hour, minute):
@@ -134,75 +152,429 @@ class day_time: #stores hour and minute
             return False
         return True
 
-class storage: #stores user data for saving
-    def __init__(self, pills, time_settings, mode):
+class pill_dose:
+    def __init__(self, unix_day, time):
+        self.day = unix_day
+        self.time = time
+        return
+    def get_day(self):
+        return ((time.localtime((self.day) * 86400 - time.localtime().tm_gmtoff).tm_wday) + 1) % 7
+    def get_date(self):
+        return time.localtime((self.day ) * 86400 - time.localtime().tm_gmtoff).tm_mday
+    def get_month(self):
+        return time.localtime((self.day) * 86400 - time.localtime().tm_gmtoff).tm_mon
+
+class offline_data_storage: #stores user data for saving
+    def __init__(self, pills, time_settings, mode, missed_doses, doses_taken, saved_day):
         self.pills = pills
         self.time_setting = time_settings
         self.mode = mode
+        self.missed_doses = missed_doses
+        self.doses_taken = doses_taken
+        self.day = saved_day
         return
+
+class online_settings_storage:
+    def __init__(self, wifi_name, username, password):
+        self.wifi_name = wifi_name
+        self.username = username
+        self.password = password
 
 #Saves data into "user_data" file, called everytime data is modified
 def save_offline_data():
-    temp_storage = storage(pills, time_settings, app_mode)
+    temp_storage = offline_data_storage(pills, time_settings, app_mode, missed_doses, dose_taken_day, saved_day)
     with open("user_data.p", "wb") as file:
         pickle.dump(temp_storage, file)
     return
 
 #Reads data from "user_data" file, called upon application startup
 def load_offline_data():
-    global pills, time_settings, app_mode, dosage_info
+    global pills, time_settings, app_mode, dosage_info, missed_doses, dose_taken_day, saved_day
     try: #if file is found, load data
         with open("user_data.p", "rb") as file:
-            temp_storage = pickle.load(open("user_data.p", "rb"))
+            temp_storage = pickle.load(file)
             pills = temp_storage.pills
             time_settings = temp_storage.time_setting
             app_mode = temp_storage.mode
+            current_day = int(time.time() + time.localtime().tm_gmtoff/ 86400)
+            for entry in temp_storage.missed_doses:
+                if entry.day <= current_day:
+                    missed_doses.append(entry)
+            dose_taken_day = temp_storage.doses_taken
+            saved_day = temp_storage.day
             dosage_info = dosage_table(pills)
             update_time_thresholds()
     except FileNotFoundError: #if file is not found, create empty file
         pill_1 = pill("Aspirin", 1, 2, 100, [True, True, True, True, True, True, True],[True, False, False, True], 1) #For testing only
         pill_2 = pill("Omeprazole", 2, 4, 100, [False, True, True, True, True, True, False],[True, True, True, False], 2) #For testing only
-        pills = [pill_1, pill_2, add_pill]
+        pill_3 = pill("Vitamin C", 0, 1, 100, [True, True, True, True, True, True, True],[True, False, False, False], 3) #For testing only
+        pills = [pill_1, pill_2, pill_3, add_pill]
         dosage_info = dosage_table(pills)
         time_settings = [day_time(8,0), day_time(12,30), day_time(17,0), day_time(21,0)]
         update_time_thresholds()
-        app_mode = 0
+    return
+
+def save_online_settings():
+    temp_storage = online_settings
+    with open("online_settings_storage.p", "wb") as file:
+        pickle.dump(temp_storage, file)
+    return
+
+def load_online_settings():
+    global online_settings
+    try:
+        with open("online_settings.p", "rb") as file:
+            temp_settings = pickle.load(file)
+            online_settings.wifi_name = temp_settings.wifi_name
+            online_settings.username = temp_settings.username
+            online_settings.password = temp_settings.password
+    except FileNotFoundError:
+        online_settings.wifi_name = False
+        online_settings.username = False
+        online_settings.password = False
     return
 
 #Initial startup button
 def start_button(): 
-    global at_main
+    global at_main, app_mode
     load_offline_data()
     if app_mode == 0:
         setup_page.lift()
     elif app_mode == 1:
-        s_wifi_button.place_forget()
-        s_lines[3].place_forget()
-        goto_main_page_button()
+        configure_app(True)
     elif app_mode == 2:
+        load_online_settings()
+        online_status = check_internet()
+        if not online_status:
+            if online_settings.wifi_name:
+                if try_internet_connect(online_settings.wifi_name):
+                    if check_internet():
+                        online_status = True
+                    else:
+                        #Connected but no internet
+                        wifi_message_label.configure(text=f"Connected to {online_settings.wifi_name} but no internet")
+                        online_status = False
+                else:
+                    #Unable to connect to specified wifi network
+                    wifi_message_label.configure(text=f"Unable to connect to {online_settings.wifi_name}")
+                    online_status = False
+            else:
+                #No saved wifi name
+                online_status = False
+        if not online_status:
+            goto_wifi_page_button()
+        else:
+            #attempt login
+            pass
+        configure_app(True)
+    return
+
+def configure_app(gotomain = False):
+    global app_mode
+    if app_mode == 1:
+        m_status_frame.place_configure(relheight=0.1)
+        m_pill_frame.place_configure(relheight=0.225, rely=0.1)
+        m_quantity_frame.place_configure(relheight=0.225, rely=0.325)
+        m_history_frame.place_configure(relheight=0.225, rely=0.55)
+        m_settings_frame.place_configure(relheight=0.225, rely=0.775)
+        m_account_frame.place_forget()
+        main_lines[0].place_configure(rely=0.1)
+        main_lines[1].place_configure(rely=0.325)
+        main_lines[2].place_configure(rely=0.55)
+        main_lines[3].place_configure(rely=0.775)
+        main_lines[4].place_forget()
+        m_settings_frame.configure(bg=colours["main_settings_bg"])
+        m_setting_button.configure(bg=colours["main_settings_bg"])
+        s_wifi_button.place_forget()
+        s_mode_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
+    elif app_mode == 2:
+        m_status_frame.place_configure(relheight=0.05)
+        m_pill_frame.place_configure(relheight=0.19, rely=0.05)
+        m_quantity_frame.place_configure(relheight=0.19, rely=0.24)
+        m_history_frame.place_configure(relheight=0.19, rely=0.43)
+        m_account_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.62, anchor="ne")
+        m_settings_frame.place_configure(relheight=0.19, rely=0.81)
+        main_lines[0].place_configure(rely=0.05)
+        main_lines[1].place_configure(rely=0.24)
+        main_lines[2].place_configure(rely=0.43)
+        main_lines[3].place_configure(rely=0.62)
+        main_lines[4].place_configure(rely=0.81)
+        m_settings_frame.configure(bg=colours["main_account_bg"])
+        m_setting_button.configure(bg=colours["main_account_bg"])
+        s_mode_button.place_forget()
+        s_wifi_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
+    if gotomain:
         goto_main_page_button()
+    return
+
+def check_internet():
+    for tries in range(5):
+        time.sleep(0.2)
+        try:
+            url = "https://www.google.com/"
+            request.urlopen(url)
+            return True
+        except error.URLError:
+            #Connected but no internet
+            pass
+    return False
+
+def try_connect_internet(name):
+    try:
+        command = f'cmd /c \"netsh wlan connect ssid={name} name={name}\"'
+        out = subprocess.check_output(command)
+        return True
+    except:
+        return False
+    return False
+
+def connect_wifi(name, password):
+    global online_settings, app_mode
+    if name == "":
+        wifi_message_label.configure(text=f"Please select a Wifi network")
+        return
+    online_status = False
+    profiles = [line.strip()[23:] for line in subprocess.check_output(f'cmd /c \"netsh wlan show profiles\"').decode('ascii').splitlines() if line.strip().startswith("All User Profile")]
+    if name not in profiles:
+        if password == "":
+            create_new_connection(name, password)
+            if try_connect_internet(name):
+                pass
+            else:
+                wifi_password_entry.configure(state="normal", bg=colours["wifi_entry_u"], activebackground=colours["wifi_entry_u"])
+                wifi_message_label.configure(text=f"Please enter password")
+                return
+        else:
+            create_new_connection(name, password)
+    wifi_message_label.configure(text=f"Connecting...")
+    if try_connect_internet(name):
+        if check_internet():
+            online_status = True
+            wifi_message_label.configure(text=f"Connected")
+            online_settings.wifi_name = name
+            save_online_settings()
+            if app_mode == 2:
+                goto_setting_page_button()
+            else:
+                goto_login_page_button()
+        else:
+            online_status = False
+            wifi_message_label.configure(text=f"Connected to {name} but no internet")
+    else:
+        #Unable to connect to specified wifi network
+        if password == "":
+            create_new_connection(name, password)
+            if try_connect_internet(name):
+                pass
+            else:
+                wifi_password_entry.configure(state="normal", bg=colours["wifi_entry_u"], activebackground=colours["wifi_entry_u"])
+                wifi_message_label.configure(text=f"Please enter password")
+                return
+        else:
+            create_new_connection(name, password)
+            if check_internet():
+                online_status = True
+                wifi_message_label.configure(text=f"Connected")
+                goto_login_page_button()
+            else:
+                online_status = False
+                wifi_message_label.configure(text=f"Connected to {name} but no internet")
+        wifi_message_label.configure(text=f"Unable to connect to {name}")
+        online_status = False
+    return
+
+def create_new_connection(name, password):
+    config = """<?xml version=\"1.0\"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+	<name>"""+name+"""</name>
+	<SSIDConfig>
+		<SSID>
+			<name>"""+name+"""</name>
+		</SSID>
+	</SSIDConfig>
+	<connectionType>ESS</connectionType>
+	<connectionMode>auto</connectionMode>
+	<MSM>
+		<security>
+			<authEncryption>
+				<authentication>WPA2PSK</authentication>
+				<encryption>AES</encryption>
+				<useOneX>false</useOneX>
+			</authEncryption>
+			<sharedKey>
+				<keyType>passPhrase</keyType>
+				<protected>false</protected>
+				<keyMaterial>"""+password+"""</keyMaterial>
+			</sharedKey>
+		</security>
+	</MSM>
+</WLANProfile>"""
+    command = "netsh wlan add profile filename=\""+name+".xml\""+""
+    with open(name+".xml", 'w') as file:
+        file.write(config)
+    subprocess.run(command)
     return
 
 #Setup page: Set up application in offline mode
 def setup_offline_button_command():
     global app_mode
     app_mode = 1
-    goto_main_page_button()
+    configure_app(True)
     return
 
 #Setup page: Set up application in online mode
 def setup_online_button_command():
-    global app_mode
-    app_mode = 2
-    #goto login page
+    if check_internet():
+        goto_login_page_button()
+    else:
+        goto_wifi_page_button()
     return
 
-#Main page: Called every 5 seconds to update time in main page, does not get called when not at main page
+def wifi_page_update(clear):
+    global wifi_networks
+    if clear:
+        wifi_selected.set("")
+        wifi_password_entry.configure(text="", state="disabled", bg=colours["wifi_entry_d"], activebackground=colours["wifi_entry_d"])
+    else:
+        wifi_selected.set(online_settings.wifi_name)
+    networks = subprocess.check_output(f'cmd /c \"netsh wlan show network\"').decode('ascii')
+    wifi_networks = [line[line.find(":") + 2:] for line in networks.splitlines() if line.startswith("SSID")]
+    wifi_name_button["menu"].delete(0, "end")
+    for network in wifi_networks:
+        wifi_name_button["menu"].add_command(label=network, command=tk._setit(wifi_selected, network))
+    return
+
+def goto_wifi_page_button(clear=True):
+    wifi_page_update(clear)
+    wifi_page.lift()
+    return
+
+def login_page_update():
+    login_username_entry.configure(text=online_settings.username)
+    login_username_entry.configure(text=online_settings.password)
+    return
+
+def goto_login_page_button():
+    login_page.lift()
+    return
+
+def attempt_login(email, password, load_data = False):
+    global user_user
+    URL = "https://orbital-cygnus.herokuapp.com/login.php"
+    PARAMS = {"email":email, "password":password}
+    output = requests.post(URL, data = PARAMS).text
+    if output == "Email or Password wrong":
+        login_message_label.configure(text="Incorrect email or password")
+        return False
+    else:
+        login_message_label.configure(text="Log In Successful")
+        data = output.split("#")
+        online_settings.username = email
+        online_settings.password = password
+        save_online_settings()
+        user_user.email = email
+        user_user.userID = data[0]
+        user_user.first_name = data[1]
+        user_user.last_name = data[2]
+        if load_data:
+            load_online_data(data[0])
+        return True
+    return
+
+def load_online_data(id):
+    global pills, user_user, time_settings
+    URL = "https://orbital-cygnus.herokuapp.com/pillDetails.php"
+    pill_count = 0
+    for count in range(6):
+        PARAMS = {"id":id, "container":count}
+        output = requests.post(URL, data = PARAMS).text.split("#")
+        if output[0] != "NIL":
+            URL = "https://orbital-cygnus.herokuapp.com/getDosage.php"
+            PARAMS = {"id":id, "container":count}
+            dosage_output = requests.post(URL, data = PARAMS).text.split("#")
+            pills.insert(pill_count,pill(output[0],output[3],output[2],output[1],dosage_output[0],dosage_output[1],dosage_output[2]))
+            pill_count += 1
+    URL = "https://orbital-cygnus.herokuapp.com/getTime.php"
+    PARAMS = {"id":id}
+    output = requests.post(URL, data = PARAMS).text.split("#")
+    time_settings = [day_time((elem/100).floor(),elem%100) for elem in output]
+    #TODO: Load sharing emails
+    return
+
+def wifi_back_button():
+    if app_mode == 0:
+        setup_page.lift()
+    elif app_mode == 1 or app_mode == 2:
+        goto_setting_page_button()
+        setting_wifi_button()
+    return
+
+def login_back_button():
+    if app_mode == 0:
+        goto_wifi_page_button(False)
+    elif app_mode == 1 or app_mode == 2:
+        goto_account_page_button()
+    return
+
+def wifi_selection_change():
+    wifi_password_entry.configure(text="", state="disabled", bg=colours["wifi_entry_d"], activebackground=colours["wifi_entry_d"])
+    return
+
+#Main page: Called every 5 seconds to update time in main page
 def main_time_update():
+    global dose_taken_day, saved_day
+    temp_time = time.localtime()
+    yday = temp_time.tm_yday
+    temp_day = int((time.time() + time.localtime().tm_gmtoff) / 86400)
+    if temp_day != saved_day:
+        day_diff = temp_day - saved_day
+        if (day_diff > 3):
+            start_secs = int((time.time() + time.localtime().tm_gmtoff)) - 86400 * 3
+            for i in range(3):
+                start_time = time.localtime(start_secs)
+                for j in range(4):
+                    if dosage_info.has_dose((time.localtime(start_secs).tm_wday + 1) % 7,j):
+                        missed_doses.append(pill_dose(int((time.time() + time.localtime().tm_gmtoff) / 86400), j))
+                        if len(missed_doses) > 10:
+                            missed_doses.pop(0)
+                start_secs += 86400
+        else:
+            for i in range(4):
+                if dose_taken_day[i] == 0:
+                    if dosage_info.has_dose((saved_day + 5) % 7 ,i):
+                        missed_doses.append(pill_dose(int((time.time() + time.localtime().tm_gmtoff) / 86400), i))
+                        if len(missed_doses) > 10:
+                            missed_doses.pop(0)
+            if day_diff > 1:
+                start_secs = int((time.time() + time.localtime().tm_gmtoff)) - 86400 * (day_diff - 1)
+                for i in range(day_diff - 1):
+                    start_time = time.localtime(start_secs)
+                    for j in range(4):
+                        if dosage_info.has_dose((time.localtime(start_secs).tm_wday + 1) % 7,j):
+                            missed_doses.append(pill_dose(int((time.time() + time.localtime().tm_gmtoff) / 86400), j))
+                            if len(missed_doses) > 10:
+                                missed_doses.pop(0)
+                    start_secs += 86400
+        dose_taken_day = [0] * 4
+        saved_day = temp_day
+        save_offline_data()
+        #Update database
+    for count in range(4):
+        curr_day_sec = int((time.time() + time.localtime().tm_gmtoff) % 86400)
+        if dose_taken_day[count] == 0 and curr_day_sec > time_thresholds[count][1]:
+            if dosage_info.has_dose((time.localtime().tm_wday + 1) % 7,count):
+                dose_taken_day[count] = -1
+                missed_doses.append(pill_dose(int((time.time() + time.localtime().tm_gmtoff) / 86400), count))
+                if len(missed_doses) > 10:
+                    missed_doses.pop(0)  
+            else:
+                dose_taken_day[count] = 2
+            save_offline_data()
+            #Update database
     if at_main == True:
         m_time_label.configure(text=time.strftime(" %H:%M"))
         m_date_label.configure(text=time.strftime("%a, %d %B"))
-        m_time_label.after(1000, main_time_update)
+    m_time_label.after(5000, main_time_update)
     return
 
 #Go to dispense page
@@ -232,19 +604,24 @@ def goto_quantity_page_button():
 
 #Go to history page
 def goto_history_page_button():
+    global at_main
+    history_page_update()
+    history_page.lift()
+    at_main = False
     return
 
 #Go to settings page
 def goto_setting_page_button():
     global at_main
-    settings_page.lift()
     setting_time_button()
+    settings_page.lift()
     at_main = False
     return
 
 #Go to account page
 def goto_account_page_button():
     global at_main
+    account_page_update()
     account_page.lift()
     account_general_button()
     at_main = False
@@ -508,11 +885,10 @@ def keyboard_cancel_button():
 
 def update_time_window():
     global current_window, current_day
-    temp_time = time.localtime(time.time())
-    current_day = (temp_time.tm_wday + 1) % 7
-    curr_min = temp_time.tm_hour * 60 + temp_time.tm_min
+    curr_day_sec = int(time.time() + time.localtime().tm_gmtoff) % 86400
+    current_day = (time.localtime().tm_wday + 1) % 7
     for i in range(4):
-        if curr_min >= time_thresholds[i][0] and curr_min <= time_thresholds[i][1] and history_info_wk[current_day][i] == 0:
+        if curr_day_sec >= time_thresholds[i][0] and curr_day_sec <= time_thresholds[i][1] and dose_taken_day[i] == 0:
             current_window = i
             return
     current_window = -1
@@ -555,11 +931,14 @@ def dispense_page_decrease_button(pill_index):
 
 #Dispense Page: Dispense the specified number of pills
 def dispense_dipense_button():
-    global pills
+    global pills, dose_taken_day
     #Hardware stuff
     for i in range(len(pills) - 1):
         current_disp = int(d_amount_button[i].cget("text"))
         pills[i].qty = max(pills[i].qty - current_disp, 0)
+    day = time.localtime().tm_wday
+    if current_window != -1:
+        dose_taken_day[current_window] = 1
     #Update database
     return
 
@@ -963,6 +1342,36 @@ def quantity_page_update():
             q_chart_qty_labels[count].configure(text="")
     return
 
+#History Page: Updates information in history page
+def history_page_update():
+    for i in range(5):
+        if i < len(missed_doses):
+            temp=missed_doses[-i-1]
+            h_list_entry_day_labels[i].configure(text=f" {day_list[temp.get_day()]}, {temp.get_date()} {mon_list[temp.get_month() - 1]}")
+            h_list_entry_time_labels[i].configure(text=f"  {time_list[temp.time]}")
+            for j in range(6):
+                if j < len(pills) - 1:
+                    h_list_entry_pill_labels[i][j].configure(text=f"{dosage_info.table[j][temp.get_day()][temp.time]} × ", image=pill_images_tiny[pills[j].get_icon_id()])
+                else:
+                    h_list_entry_pill_labels[i][j].configure(text="", image="")
+        else:
+            h_list_entry_day_labels[i].configure(text="")
+            h_list_entry_time_labels[i].configure(text="")
+            for j in range(6):
+                h_list_entry_pill_labels[i][j].configure(text="", image="")
+    return
+
+#Account Page: Update page with user details
+def account_page_update():
+    a_email_button.configure(text=user_user.email)
+    a_userID_button.configure(text=user_user.userID)
+    a_first_name_button.configure(text=user_user.first_name)
+    a_last_name_button.configure(text=user_user.last_name)
+    a_sharing_user1_button.configure(text=user_user.share_user1)
+    a_sharing_user2_button.configure(text=user_user.share_user2)
+    a_sharing_user3_button.configure(text=user_user.share_user3)
+    return
+
 #Account Page: Return to main page
 def account_back_button():
     if a_editing == False:
@@ -1035,6 +1444,7 @@ def account_logout_button():
         a_logout_frame.lift()
         a_logout_confirm_button.configure(state="disabled")
         a_logout_logout_button.configure(state="normal")
+        a_logout_message.configure(text="")
         return
     if current_a_page == 0:
         a_general_message.configure(text="Would you like to save recent changes?")
@@ -1123,15 +1533,29 @@ def account_sharing_cancel_button():
     a_sharing_message.configure(text="")
     return
 
-#Account Page: Changes password
+#Account Page: Change password
 def account_password_change_button():
-    #Checks if current password is correct
-    #Checks if new password and confirm password match
-    #Update database
-    a_password_message.configure(text="Password changed successfully")
-    a_password_current_button.configure(text="")
-    a_password_new_button.configure(text="")
-    a_password_confirm_button.configure(text="")
+    global online_settings
+    current_password = a_password_current_button.cget("text")
+    new_password = a_password_new_button.cget("text")
+    URL = "https://orbital-cygnus.herokuapp.com/checkPass.php"
+    PARAMS = {"id":user_user.userID, "password":current_password}
+    output = requests.post(URL, data = PARAMS).text
+    if output == "Password Match":
+        URL = "https://orbital-cygnus.herokuapp.com/updatePass.php"
+        PARAMS = {"id":user_user.userID, "password":new_password}
+        output = requests.post(URL, data = PARAMS).text
+        if output == "Changed Successfully":
+            a_password_message.configure(text="Password changed successfully!")
+            a_password_current_button.configure(text="")
+            a_password_new_button.configure(text="")
+            a_password_confirm_button.configure(text="")
+            online_settings.password = new_password
+            save_online_settings()
+        else:
+            a_password_message.configure(text="Error: Unable to change password.")
+    else:
+        a_password_message.configure(text="Incorrect password.")
     return
 
 #Account Page: Cancel password change
@@ -1145,11 +1569,12 @@ def account_password_cancel_button():
 def account_logout_logout_button():
     a_logout_confirm_button.configure(state="normal")
     a_logout_logout_button.configure(state="disabled")
+    a_logout_message.configure(text="Confirm logout?")
     return
 
 #Account Page: Confirm logout
 def account_logout_confirm_button():
-    #Logout code here
+    #TODO: Logout code here
     return
 
 #Setting Page: Go back to main page
@@ -1157,7 +1582,7 @@ def setting_back_button():
     if s_editing == False:
         goto_main_page_button()
         return
-    if current_s_page == 1:
+    if current_s_page == 0:
         s_time_message.configure(text="Would you like to save recent changes?")
     return
 
@@ -1166,11 +1591,11 @@ def setting_wifi_button():
     global current_s_page
     if s_editing == False:
         s_wifi_frame.lift()
-        current_s_page = 0
+        current_s_page = 1
         s_wifi_button.configure(bg=colours["s_menu_bn_p"])
         s_time_button.configure(bg=colours["s_menu_bn_u"])
         return
-    if current_s_page == 1:
+    if current_s_page == 0:
         s_time_message.configure(text="Would you like to save recent changes?")
     return
 
@@ -1183,17 +1608,38 @@ def setting_time_button():
         s_time_evening_button.configure(text=time_settings[2].to_string())
         s_time_night_button.configure(text=time_settings[3].to_string())
         s_time_frame.lift()
-        current_s_page = 1
+        current_s_page = 0
         s_wifi_button.configure(bg=colours["s_menu_bn_u"])
         s_time_button.configure(bg=colours["s_menu_bn_p"])
+    return
+
+def setting_mode_button():
+    global current_s_page
+    if s_editing == False:
+        current_s_page = 1
+        s_mode_button.configure(bg=colours["s_menu_bn_p"])
+        s_time_button.configure(bg=colours["s_menu_bn_u"])
+        s_mode_configure_button.configure(state="normal")
+        s_mode_confirm_button.configure(state="disabled")
+        s_mode_message.configure(text="")
+        s_mode_frame.lift()
+        return
+    if current_s_page == 0:
+        s_time_message.configure(text="Would you like to save recent changes?")
+    return
+
+def setting_time_configure_button():
+    s_mode_configure_button.configure(state="disabled")
+    s_mode_confirm_button.configure(state="normal")
+    s_mode_message.configure(text="Confirm change of app mode? This can be undone.")
     return
 
 #Updates time_thresholds 2D array to store the lower and upper bounds of the time windows. I.e. if morning is set to 0830H, time_thresholds[0] will contain [0800, 0900] when time_margin = 30. Function called when time settings are updated
 def update_time_thresholds():
     global time_thresholds
     for i in range(4):
-        time_thresholds[i][0] = max(time_settings[i].hour * 60 + time_settings[i].minute - time_margin, 0)
-        time_thresholds[i][1] = min(time_settings[i].hour * 60 + time_settings[i].minute + time_margin, 1439)
+        time_thresholds[i][0] = max(time_settings[i].hour * 3600 + time_settings[i].minute * 60 - time_margin[0] * 60, 0)
+        time_thresholds[i][1] = min(time_settings[i].hour * 3600 + time_settings[i].minute * 60 + time_margin[1] * 60, 86399)
     return
 
 #Setting Page: Enables editing of time settings
@@ -1261,7 +1707,7 @@ numpad_operator = 0 #1: plus, -1: minus
 shift = False #Stores if keyboard shift is activated
 capslock = False #Stores if keyboard capslock is enabled
 
-app_mode = 1 #0: Initial set up; 1: Offline mode; 2: Online mode
+app_mode = 0 #0: Initial set up; 1: Offline mode; 2: Online mode
 
 current_entry_button = None #Stores the button that opened the numpad/keyboard. Current button text will be copied to keyboard/numpad entry bar, reverse will be performed upon saving
 current_page = None #Stores the page that the application is at when opening keyboard/numpad. Returns to that page upon exiting
@@ -1272,20 +1718,24 @@ temp_times = ["","","",""]
 
 add_pill = pill("Add Medicine", -1, 0, 1, [False, False, False, False, False, False, False],[False, False, False, False], 1)
 
-pills = []
+pills = [add_pill]
 time_settings = []
 time_thresholds = [[0] * 2 for time_count in range(4)]
-time_margin = 30
+time_margin = [30,60]
 current_day = 0
 current_window = -1
 
 dosage_info = []
+missed_doses = []
 
-current_time = time.localtime(time.time())
+saved_day = int((time.time() + time.localtime().tm_gmtoff) / 86400)
 
-#0: default, -1: missed, 1: taken, 2:no dose
-history_info_full = []
-history_info_wk = [[0] * 4 for hist_count in range(7)]
+#0: default, -1: missed, 1: taken
+dose_taken_day = [0] * 4
+
+wifi_networks = []
+online_settings = online_settings_storage(False,False,False)
+user_user = user("","","","","","","")
 
 at_main = False
 
@@ -1300,10 +1750,29 @@ a_editing = False
 current_s_page = 0
 s_editing = False
 
+day_list = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thusday", "Friday", "Saturday"]
+mon_list = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+time_list = ["Morning", "Afternoon", "Evening", "Night"]
+
 colours = {
     "start_bg": "#98F3F9",
     "setup_bg": "#98F3F9",
     "setup_ln": "#FFFFFF",
+    "wifi_bg": "#98F3F9",
+    "wifi_menu_bn_u": "#98F3F9",
+    "wifi_menu_bn_p": "#74F0F7",
+    "wifi_entry_d": "#AFA136",
+    "wifi_entry_u": "#F7EF99",
+    "wifi_entry_p": "#F7EF99",
+    "wifi_bn_u": "#F7EF99",
+    "wifi_bn_p": "#F2E14B",
+    "login_bg": "#98F3F9",
+    "login_menu_bn_u": "#98F3F9",
+    "login_menu_bn_p": "#74F0F7",
+    "login_entry_u": "#F7EF99",
+    "login_entry_p": "#F7EF99",
+    "login_bn_u": "#F7EF99",
+    "login_bn_p": "#F2E14B",
     "main_dispense_bg": "#98F3F9",
     "main_status_bg": "#F2F2F2",
     "main_pill_bg": "#98F9CF",
@@ -1341,6 +1810,11 @@ colours = {
     "q_menu_bn_p": "#74F0F7",
     "q_ln": "#FFFFFF",
     "q_bc": "#F7EF99",
+    "h_bg": "#98F3F9",
+    "h_menu_bn_u": "#98F3F9",
+    "h_menu_bn_p": "#74F0F7",
+    "h_ln": "#FFFFFF",
+    "h_content_bg": "#F7EF99",
     "pd_bn_u": "#F7EF99",
     "pd_bn_p": "#F2E14B",
     "a_menu_bn_u": "#98F3F9",
@@ -1380,7 +1854,6 @@ start_image = ImageTk.PhotoImage(Image.open("Resources/start.png"))
 online_image = ImageTk.PhotoImage(Image.open("Resources/online_icon.png"))
 offline_image = ImageTk.PhotoImage(Image.open("Resources/offline_icon.png"))
 dispense_image = ImageTk.PhotoImage(Image.open("Resources/dispense_icon.png"))
-refill_image = ImageTk.PhotoImage(Image.open("Resources/refill_icon.png"))
 pill_image = ImageTk.PhotoImage(Image.open("Resources/pill_icon.png"))
 quantity_image = ImageTk.PhotoImage(Image.open("Resources/bar_chart_icon.png"))
 history_image = ImageTk.PhotoImage(Image.open("Resources/history_icon.png"))
@@ -1398,6 +1871,9 @@ lock_image = ImageTk.PhotoImage(Image.open("Resources/lock_icon.png"))
 logout_image = ImageTk.PhotoImage(Image.open("Resources/logout_icon.png"))
 wifi_image = ImageTk.PhotoImage(Image.open("Resources/wifi_icon.png"))
 clock_image = ImageTk.PhotoImage(Image.open("Resources/clock_icon.png"))
+checkbox_tick_image = ImageTk.PhotoImage(Image.open("Resources/checkbox_tick_icon.png"))
+checkbox_cross_image = ImageTk.PhotoImage(Image.open("Resources/checkbox_cross_icon.png"))
+checkbox_empty_image = ImageTk.PhotoImage(Image.open("Resources/checkbox_empty_icon.png"))
 pill_images = []
 pill_images_small = []
 pill_images_tiny = []
@@ -1409,7 +1885,7 @@ for image_counter in range(42):
         pill_images.append(ImageTk.PhotoImage(temp_image))
         temp_image.thumbnail((80,50))
         pill_images_small.append(ImageTk.PhotoImage(temp_image))
-        temp_image.thumbnail((35,35))
+        temp_image.thumbnail((35,30))
         pill_images_tiny.append(ImageTk.PhotoImage(temp_image))
 colour_images = []
 for image_counter in range(6):
@@ -1419,8 +1895,8 @@ for image_counter in range(6):
 
 start_page = Page(window)
 start_page.place(x=0, y=0, relwidth=1, relheight=1)
-start_button = tk.Button(start_page, image=start_image, command = start_button, relief="sunken", borderwidth=0, bg=colours["start_bg"], activebackground=colours["start_bg"])
-start_button.place(x=0, y=0, relwidth=1, relheight=1)
+start_page_button = tk.Button(start_page, image=start_image, command = start_button, relief="sunken", borderwidth=0, bg=colours["start_bg"], activebackground=colours["start_bg"])
+start_page_button.place(x=0, y=0, relwidth=1, relheight=1)
 
 setup_page = Page(window, bg=colours["setup_bg"])
 setup_page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -1441,45 +1917,112 @@ setup_line = tk.Frame(setup_page, bg=colours["setup_ln"])
 setup_line.place(width=2, relheight=1, relx=0.5, rely=0, anchor="n")
 
 
+wifi_page = Page(window, bg=colours["wifi_bg"])
+wifi_page.place(x=0, y=0, relwidth=1, relheight=1)
+
+wifi_back_button = tk.Button(wifi_page, image=back_icon_image, bg=colours["wifi_menu_bn_u"], activebackground=colours["wifi_menu_bn_p"], relief="sunken", borderwidth=0, command = wifi_back_button)
+wifi_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
+
+wifi_selected = tk.StringVar()
+wifi_selected.set("")
+wifi_page_label = tk.Label(wifi_page, text="Connect to WiFi", bg=colours["wifi_bg"], font=("Trebuchet MS",24,"underline"))
+wifi_page_label.place(relwidth=0.5, relheight=0.2, relx=0.5, rely=0.04, anchor="n")
+
+wifi_name_frame = tk.Frame(wifi_page, bg=colours["wifi_bg"])
+wifi_name_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.36, anchor="n")
+wifi_name_label = tk.Label(wifi_name_frame, text="WiFi Name:", bg=colours["wifi_bg"], font=("Trebuchet MS",20), anchor="w")
+wifi_name_label.place(relwidth=0.4, relheight=1, relx=0, rely=0)
+wifi_name_button = tk.OptionMenu(wifi_name_frame, wifi_selected, "", *wifi_networks)
+wifi_name_button.configure(bg=colours["wifi_entry_u"], activebackground=colours["wifi_entry_u"], font=("Trebuchet MS",18), anchor="w")
+wifi_name_button["menu"].configure(bg=colours["wifi_entry_u"], activebackground=colours["wifi_entry_p"], activeforeground="black", font=("Trebuchet MS",16))
+wifi_name_button.place(relwidth=0.6, relheight=1, relx=0.4, rely=0)
+
+wifi_password_frame = tk.Frame(wifi_page, bg=colours["wifi_bg"])
+wifi_password_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.48, anchor="n")
+wifi_password_label = tk.Label(wifi_password_frame, text="Password:", bg=colours["wifi_bg"], font=("Trebuchet MS",20), anchor="w")
+wifi_password_label.place(relwidth=0.4, relheight=1, relx=0, rely=0)
+wifi_password_entry = tk.Button(wifi_password_frame, bg=colours["wifi_entry_d"], activebackground=colours["wifi_entry_d"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", command = lambda: open_keyboard_button(wifi_page, wifi_password_label, wifi_password_entry))
+wifi_password_entry.place(relwidth=0.6, relheight=1, relx=0.4, rely=0)
+
+wifi_message_frame = tk.Frame(wifi_page, bg=colours["wifi_bg"])
+wifi_message_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.6, anchor="n")
+wifi_message_label = tk.Label(wifi_message_frame, text="", bg=colours["wifi_bg"], font=("Trebuchet MS",18), fg="red", anchor="w")
+wifi_message_label.place(relwidth=1, relheight=1, relx=0, rely=0)
+
+wifi_refresh_button = tk.Button(wifi_page, text="Refresh", font=("Trebuchet MS", 18), bg=colours["wifi_bn_u"], relief="solid", borderwidth=2, activebackground=colours["wifi_bn_p"], command=lambda:wifi_page_update(False))
+wifi_refresh_button.place(relx=0.35, rely=0.84, relwidth=0.2, relheight=0.08, anchor="n")
+
+wifi_connect_button = tk.Button(wifi_page, text="Connect", font=("Trebuchet MS", 18), bg=colours["wifi_bn_u"], relief="solid", borderwidth=2, activebackground=colours["wifi_bn_p"], command=lambda:connect_wifi(wifi_selected.get(), wifi_password_entry.cget("text")))
+wifi_connect_button.place(relx=0.65, rely=0.84, relwidth=0.2, relheight=0.08, anchor="n")
+
+
+login_page = Page(window, bg=colours["login_bg"])
+login_page.place(x=0, y=0, relwidth=1, relheight=1)
+
+login_page_label = tk.Label(login_page, text="Log in to PillBot", bg=colours["login_bg"], font=("Trebuchet MS",24,"underline"))
+login_page_label.place(relwidth=0.5, relheight=0.2, relx=0.5, rely=0.04, anchor="n")
+
+login_back_button = tk.Button(login_page, image=back_icon_image, bg=colours["login_menu_bn_u"], activebackground=colours["login_menu_bn_p"], relief="sunken", borderwidth=0, command = login_back_button)
+login_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
+
+login_username_frame = tk.Frame(login_page, bg=colours["login_bg"])
+login_username_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.36, anchor="n")
+login_username_label = tk.Label(login_username_frame, text="Email:", bg=colours["login_bg"], font=("Trebuchet MS",20), anchor="w")
+login_username_label.place(relwidth=0.4, relheight=1, relx=0, rely=0)
+login_username_entry = tk.Button(login_username_frame, bg=colours["login_entry_u"], activebackground=colours["login_entry_u"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", command = lambda: open_keyboard_button(login_page, login_username_label, login_username_entry))
+login_username_entry.place(relwidth=0.6, relheight=1, relx=0.4, rely=0)
+
+login_password_frame = tk.Frame(login_page, bg=colours["login_bg"])
+login_password_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.48, anchor="n")
+login_password_label = tk.Label(login_password_frame, text="Password:", bg=colours["login_bg"], font=("Trebuchet MS",20), anchor="w")
+login_password_label.place(relwidth=0.4, relheight=1, relx=0, rely=0)
+login_password_entry = tk.Button(login_password_frame, bg=colours["login_entry_u"], activebackground=colours["login_entry_u"], borderwidth=2, relief="solid", padx=5, pady=10, font=("Trebuchet MS",18), anchor="w", command = lambda: open_keyboard_button(login_page, login_password_label, login_password_entry))
+login_password_entry.place(relwidth=0.6, relheight=1, relx=0.4, rely=0)
+
+login_message_frame = tk.Frame(login_page, bg=colours["wifi_bg"])
+login_message_frame.place(relwidth=0.6, relheight=0.08, relx=0.5, rely=0.6, anchor="n")
+login_message_label = tk.Label(wifi_message_frame, text="", bg=colours["wifi_bg"], font=("Trebuchet MS",18), fg="red", anchor="w")
+login_message_label.place(relwidth=1, relheight=1, relx=0, rely=0)
+
+login_login_button = tk.Button(login_page, text="Login", font=("Trebuchet MS", 18), bg=colours["login_bn_u"], relief="solid", borderwidth=2, activebackground=colours["login_bn_p"], command=lambda:attempt_login(login_username_entry.cget("text"), login_password_entry.cget("text"), True))
+login_login_button.place(relx=0.5, rely=0.84, relwidth=0.2, relheight=0.08, anchor="n")
+
+
+
 main_page = Page(window, bg=colours["main_dispense_bg"])
 main_page.place(relx=0, rely=0, relwidth=1, relheight=1)
 
 m_dispense_frame = tk.Frame(main_page, bg=colours["main_dispense_bg"])
-m_dispense_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0, anchor="nw")
-m_dispense_button = tk.Button(m_dispense_frame, bg=colours["main_dispense_bg"], image=dispense_image, text=" Dispense", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=goto_dispense_page_button)
+m_dispense_frame.place(relwidth=0.55, relheight=1, relx=0, rely=0, anchor="nw")
+m_dispense_button = tk.Button(m_dispense_frame, bg=colours["main_dispense_bg"], image=dispense_image, text=" Dispense", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",28), anchor="c", padx=20, command=goto_dispense_page_button)
 m_dispense_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
-m_refill_frame = tk.Frame(main_page, bg=colours["main_dispense_bg"])
-m_refill_frame.place(relwidth=0.6, relheight=0.5, relx=0, rely=0.5, anchor="nw")
-m_refill_button = tk.Button(m_refill_frame, bg=colours["main_dispense_bg"], image=refill_image, text=" Refill", compound="left", activebackground=colours["main_dispense_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="c", padx=20, command=goto_dispense_page_button)
-m_refill_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
-
 m_status_frame = tk.Frame(main_page, bg=colours["main_status_bg"])
-m_status_frame.place(relwidth=0.4, relheight=0.05, relx=1, rely=0, anchor="ne")
+m_status_frame.place(relwidth=0.45, relheight=0.05, relx=1, rely=0, anchor="ne")
 
 m_pill_frame = tk.Frame(main_page, bg=colours["main_pill_bg"])
-m_pill_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.05, anchor="ne")
-m_pill_button = tk.Button(m_pill_frame, bg=colours["main_pill_bg"], image=pill_image, text=" Medicine", compound="left", activebackground=colours["main_pill_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_pill_page_button)
+m_pill_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.05, anchor="ne")
+m_pill_button = tk.Button(m_pill_frame, bg=colours["main_pill_bg"], image=pill_image, text=" Medicine", compound="left", activebackground=colours["main_pill_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",26), anchor="w", padx=20, command=goto_pill_page_button)
 m_pill_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_quantity_frame = tk.Frame(main_page, bg=colours["main_quantity_bg"])
-m_quantity_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.24, anchor="ne")
-m_quantity_button = tk.Button(m_quantity_frame, bg=colours["main_quantity_bg"], image=quantity_image, text=" Quantity", compound="left", activebackground=colours["main_quantity_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_quantity_page_button)
+m_quantity_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.24, anchor="ne")
+m_quantity_button = tk.Button(m_quantity_frame, bg=colours["main_quantity_bg"], image=quantity_image, text=" Quantity", compound="left", activebackground=colours["main_quantity_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",26), anchor="w", padx=20, command=goto_quantity_page_button)
 m_quantity_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_history_frame = tk.Frame(main_page, bg=colours["main_history_bg"])
-m_history_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.43, anchor="ne")
-m_history_button = tk.Button(m_history_frame, bg=colours["main_history_bg"], image=history_image, text=" History", compound="left", activebackground=colours["main_history_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_history_page_button)
+m_history_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.43, anchor="ne")
+m_history_button = tk.Button(m_history_frame, bg=colours["main_history_bg"], image=history_image, text=" History", compound="left", activebackground=colours["main_history_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",26), anchor="w", padx=20, command=goto_history_page_button)
 m_history_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_account_frame = tk.Frame(main_page, bg=colours["main_account_bg"])
-m_account_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.62, anchor="ne")
-m_account_button = tk.Button(m_account_frame, bg=colours["main_account_bg"], image=person_image, text=" Account", compound="left", activebackground=colours["main_account_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_account_page_button)
+m_account_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.62, anchor="ne")
+m_account_button = tk.Button(m_account_frame, bg=colours["main_account_bg"], image=person_image, text=" Account", compound="left", activebackground=colours["main_account_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",26), anchor="w", padx=20, command=goto_account_page_button)
 m_account_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 m_settings_frame = tk.Frame(main_page, bg=colours["main_settings_bg"])
-m_settings_frame.place(relwidth=0.4, relheight=0.19, relx=1, rely=0.81, anchor="ne")
-m_setting_button = tk.Button(m_settings_frame, bg=colours["main_settings_bg"], image=setting_image, text=" Settings", compound="left", activebackground=colours["main_settings_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",24), anchor="w", padx=20, command=goto_setting_page_button)
+m_settings_frame.place(relwidth=0.45, relheight=0.19, relx=1, rely=0.81, anchor="ne")
+m_setting_button = tk.Button(m_settings_frame, bg=colours["main_settings_bg"], image=setting_image, text=" Settings", compound="left", activebackground=colours["main_settings_bg"], relief="sunken", borderwidth=0, font=("Trebuchet MS",26), anchor="w", padx=20, command=goto_setting_page_button)
 m_setting_button.place(relwidth = 1, relheight=1, relx=0, rely=0, anchor="nw")
 
 #Status Frame
@@ -1490,15 +2033,14 @@ m_date_label = tk.Label(m_status_frame, bg=colours["main_status_bg"], text="", f
 m_date_label.place(relx=0.5, rely=0, relwidth=0.4, relheight=1, anchor="n")
 
 main_lines = []
-for line_count in range(7):
+for line_count in range(6):
     main_lines.append(tk.Frame(main_page, bg=colours["main_ln"]))
-main_lines[0].place(relwidth=0.4, height=2, relx=1, rely=0.05, anchor="e")
-main_lines[1].place(relwidth=0.4, height=2, relx=1, rely=0.24, anchor="e")
-main_lines[2].place(relwidth=0.4, height=2, relx=1, rely=0.43, anchor="e")
-main_lines[3].place(relwidth=0.4, height=2, relx=1, rely=0.62, anchor="e")
-main_lines[4].place(relwidth=0.4, height=2, relx=1, rely=0.81, anchor="e")
-main_lines[5].place(relwidth=0.6, height=2, relx=0, rely=0.5, anchor="w")
-main_lines[6].place(width=2, relheight=1, relx=0.6, rely=0, anchor="n")
+main_lines[0].place(relwidth=0.45, height=2, relx=1, rely=0.05, anchor="e")
+main_lines[1].place(relwidth=0.45, height=2, relx=1, rely=0.24, anchor="e")
+main_lines[2].place(relwidth=0.45, height=2, relx=1, rely=0.43, anchor="e")
+main_lines[3].place(relwidth=0.45, height=2, relx=1, rely=0.62, anchor="e")
+main_lines[4].place(relwidth=0.45, height=2, relx=1, rely=0.81, anchor="e")
+main_lines[5].place(width=2, relheight=1, relx=0.55, rely=0, anchor="n")
 
 #Dispense Page
 dispense_page = Page(window, bg=colours["d_bg"])
@@ -1885,6 +2427,52 @@ q_chart_qty_labels[3].place(relx = 0.66, rely = 0.84, relwidth = 0.08, relheight
 q_chart_qty_labels[4].place(relx = 0.79, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
 q_chart_qty_labels[5].place(relx = 0.92, rely = 0.84, relwidth = 0.08, relheight = 0.16, anchor="n")
 
+#History Page
+
+history_page = Page(window, bg=colours["h_bg"])
+history_page.place(x=0, y=0, relwidth=1, relheight=1)
+
+h_back_button = tk.Button(history_page, image=back_icon_image, bg=colours["h_menu_bn_u"], activebackground=colours["h_menu_bn_p"], relief="sunken", borderwidth=0, command=goto_main_page_button)
+h_back_button.place(relx=0, rely=0, relwidth=0.12, relheight=0.2, anchor="nw")
+
+h_page_label = tk.Label(history_page, text="Missed Doses", font=("Trebuchet MS", 24, "underline"), bg=colours["h_bg"])
+h_page_label.place(relx=0.5, rely=0, relwidth=0.5, relheight=0.2, anchor="n")
+
+h_list_frame = tk.Frame(history_page, bg=colours["h_content_bg"])
+h_list_frame.place(rely=0.2,relx=0.5,relwidth=0.9,relheight=0.75,anchor="n")
+
+h_list_entry_frames = []
+h_list_entry_day_labels = []
+h_list_entry_time_labels = []
+h_list_entry_pill_labels = []
+for hist_count in range(5):
+    h_list_entry_frames.append(tk.Frame(h_list_frame, bg=colours["h_content_bg"]))
+    h_list_entry_frames[hist_count].place(relx=0,rely=hist_count*0.2,relwidth=1,relheight=0.2)
+    h_list_entry_day_labels.append(tk.Label(h_list_entry_frames[hist_count], font=("Trebuchet MS", 20), bg=colours["h_content_bg"], anchor="w"))
+    h_list_entry_day_labels[hist_count].place(relx=0,rely=0.04,relheight=0.46,relwidth=0.52)
+    h_list_entry_time_labels.append(tk.Label(h_list_entry_frames[hist_count], font=("Trebuchet MS", 16), bg=colours["h_content_bg"], anchor="w"))
+    h_list_entry_time_labels[hist_count].place(relx=0,rely=0.5,relheight=0.46,relwidth=0.52)
+    temp_entry_pill_labels = []
+    for pill_count in range(3):
+        temp_entry_pill_labels.append(tk.Label(h_list_entry_frames[hist_count], font=("Trebuchet MS", 18), bg=colours["h_content_bg"], anchor="w", compound="right"))
+        temp_entry_pill_labels[pill_count].place(relx=0.52+0.16*pill_count,rely=0.04,relwidth=0.16,relheight=0.46)
+    for pill_count in range(3):
+        temp_entry_pill_labels.append(tk.Label(h_list_entry_frames[hist_count], font=("Trebuchet MS", 18), bg=colours["h_content_bg"], anchor="w", compound="right"))
+        temp_entry_pill_labels[pill_count+3].place(relx=0.52+0.16*pill_count,rely=0.5,relwidth=0.16,relheight=0.46)
+    h_list_entry_pill_labels.append(temp_entry_pill_labels)
+
+h_lines = []
+for hist_count in range(8):
+    h_lines.append(tk.Frame(h_list_frame, bg=colours["h_ln"]))
+#Horizontal lines
+h_lines[0].place(relx=0,rely=0,relwidth=1,height=2)
+for hist_count in range(4):
+    h_lines[hist_count + 1].place(x=0,rely=0.2+0.2*hist_count,relwidth=1,height=2,anchor="w")
+h_lines[5].place(relx=0,rely=1,relwidth=1,height=2,anchor="sw")
+#Vertical lines
+h_lines[6].place(relx=0,rely=0,width=2,relheight=1)
+h_lines[7].place(relx=1,rely=0,width=2,relheight=1,anchor="ne")
+
 #Account Page
 account_page = Page(window, bg=colours["a_content_bg"])
 account_page.place(x=0, y=0, relwidth=1, relheight=1)
@@ -2047,6 +2635,9 @@ a_logout_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
 a_logout_title = tk.Label(a_logout_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",24,"underline"), text="Logout", padx=10, pady=10, anchor="w")
 a_logout_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
 
+a_logout_message = tk.Label(a_logout_frame, bg=colours["a_content_bg"], font=("Trebuchet MS",18), fg="red", padx=10, pady=10, anchor="w")
+a_logout_message.place(relx = 0.05, rely = 0.68, relwidth = 0.9, relheight = 0.08)
+
 a_logout_button_frame = tk.Frame(a_logout_frame, bg=colours["a_content_bg"])
 a_logout_logout_button = tk.Button(a_logout_button_frame, bg=colours["a_content_bn_u"], activebackground=colours["a_content_bn_p"], font=("Trebuchet MS",18), text="Logout", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=account_logout_logout_button)
 a_logout_confirm_button = tk.Button(a_logout_button_frame, bg=colours["a_content_bn_u"], activebackground=colours["a_content_bn_p"], font=("Trebuchet MS",18), text="Confirm", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=account_logout_confirm_button)
@@ -2055,7 +2646,7 @@ a_logout_logout_button.place(relx = 0.2, rely = 0, relwidth = 0.2, relheight = 1
 a_logout_confirm_button.place(relx = 0.6, rely = 0, relwidth = 0.2, relheight = 1)
 
 
-
+#Settings page
 settings_page = Page(window, bg=colours["s_menu_bn_u"])
 settings_page.place(x=0, y=0, relwidth=1, relheight=1)
 
@@ -2071,6 +2662,9 @@ s_time_button.place(relx=0.5, rely=0.2, relheight=0.2, relwidth=1, anchor="n")
 s_wifi_button = tk.Button(s_menu_frame, image=wifi_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_wifi_button, anchor = "c")
 s_wifi_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
 
+s_mode_button = tk.Button(s_menu_frame, image=wifi_image, bg=colours["s_menu_bn_u"], activebackground=colours["s_menu_bn_p"], relief="sunken", borderwidth=0, command=setting_mode_button, anchor = "c")
+s_mode_button.place(relx=0.5, rely=0.4, relheight=0.2, relwidth=1, anchor="n")
+
 s_lines = []
 for line_count in range(4):
     s_lines.append(tk.Frame(s_menu_frame, bg=colours["s_menu_ln"]))
@@ -2084,6 +2678,41 @@ s_wifi_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
 
 s_wifi_title = tk.Label(s_wifi_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",24,"underline"), text="Wifi Settings", padx=10, pady=10, anchor="w")
 s_wifi_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
+
+s_wifi_wifi_frame = tk.Frame(s_wifi_frame, bg=colours["s_content_bg"])
+s_wifi_wifi_label = tk.Label(s_wifi_wifi_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Wifi: ", padx=10, pady=10, anchor="w")
+s_wifi_wifi_button = tk.Button(s_wifi_wifi_frame, bg=colours["s_content_entry"], activebackground=colours["s_content_entry"], borderwidth=2, relief="solid", padx=5, pady=10, state="disabled", font=("Trebuchet MS",18), anchor="w", disabledforeground="#666666")
+s_wifi_wifi_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
+s_wifi_wifi_label.place(relx = 0, rely = 0, relwidth = 0.5, relheight = 1)
+s_wifi_wifi_button.place(relx = 0.5, rely = 0, relwidth = 0.5, relheight = 1)
+
+s_wifi_button_frame = tk.Frame(s_wifi_frame, bg=colours["s_content_bg"])
+s_wifi_configure_button = tk.Button(s_wifi_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Configure", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=goto_wifi_page_button(False))
+s_wifi_button_frame.place(relx = 0.05, rely = 0.84, relwidth = 0.9, relheight = 0.08)
+s_wifi_configure_button.place(relx = 0.4, rely = 0, relwidth = 0.2, relheight = 1)
+
+
+s_mode_frame = tk.Frame(settings_page, bg=colours["s_content_bg"])
+s_mode_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
+
+s_mode_title = tk.Label(s_mode_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",24,"underline"), text="Change app mode", padx=10, pady=10, anchor="w")
+s_mode_title.place(relx = 0.05, rely = 0.08, relwidth = 0.9, relheight = 0.08)
+
+s_mode_info_frame = tk.Frame(s_mode_frame, bg=colours["s_content_bg"])
+s_mode_info_label = tk.Label(s_mode_info_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), text="Switch to Online Mode? Requires WiFi Connection and enables data sharing.", padx=10, pady=10, anchor="w")
+s_mode_info_frame.place(relx = 0.05, rely = 0.20, relwidth = 0.9, relheight = 0.08)
+s_mode_info_label.place(relx = 0, rely = 0, relwidth = 1, relheight = 1)
+
+s_mode_message = tk.Label(a_password_frame, bg=colours["s_content_bg"], font=("Trebuchet MS",18), fg="red", padx=10, pady=10, anchor="w")
+s_mode_message.place(relx = 0.05, rely = 0.68, relwidth = 0.9, relheight = 0.08)
+
+s_mode_button_frame = tk.Frame(s_mode_frame, bg=colours["s_content_bg"])
+s_mode_configure_button = tk.Button(s_mode_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Configure", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=setting_time_configure_button)
+s_mode_confirm_button = tk.Button(s_mode_button_frame, bg=colours["s_content_bn_u"], activebackground=colours["s_content_bn_p"], font=("Trebuchet MS",18), text="Configure", borderwidth=2, relief="solid", padx=10, pady=10, anchor="c", disabledforeground="#666666", command=setup_online_button_command)
+s_mode_button_frame.place(relx = 0.05, rely = 0.84, relwidth = 0.9, relheight = 0.08)
+s_mode_configure_button.place(relx = 0.2, rely = 0, relwidth = 0.2, relheight = 1)
+s_mode_confirm_button.place(relx = 0.6, rely = 0, relwidth = 0.2, relheight = 1)
+
 
 s_time_frame = tk.Frame(settings_page, bg=colours["s_content_bg"])
 s_time_frame.place(relx=1, rely=0, anchor="ne", relwidth=0.88, relheight=1)
